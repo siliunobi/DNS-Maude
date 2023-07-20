@@ -1,0 +1,18 @@
+$TTL 3600
+@                       IN      SOA     server.target.com. username.target.com. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.target.com.
+                        IN      A       1.2.3.4
+ns.target.com.         IN      A       172.20.0.5
+
+
+trigger.target.com.    IN  NS  R1.target.com.
+
+trigger.target.com.    IN  NS  R2.target.com.
+
+trigger.target.com.    IN  NS  R3.target.com.
+
+trigger.target.com.    IN  NS  R4.target.com.
+
+
+*.target.com.      IN      A       172.20.0.98
+

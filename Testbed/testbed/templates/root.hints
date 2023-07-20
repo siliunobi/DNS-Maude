@@ -1,0 +1,5 @@
+; Custom root hints file.
+;
+.   300	NS  ns.root.
+ns.root.	300	A   {{.}}
+; End of file

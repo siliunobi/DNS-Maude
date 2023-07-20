@@ -1,0 +1,6 @@
+$TTL 0
+@                       IN      SOA     server.target.com. username.target.com.com. (2006032201 7200 3600 1209600 36000)
+                        IN      A       1.2.3.4
+
+lv9.lv8.lv7.lv6.lv5.lv4.lv3.lv2.lv1.target.com NS ns9.target.com
+ns9.target.com A 172.20.0.14

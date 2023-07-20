@@ -1,0 +1,109 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+
+--- This is the iDNS attack (indefinitely delegating name servers), i.e., the victim is a recursive resolver.
+--- Note, however, that the attacker's name server receives roughly the same number of queries.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'sub1 . 'attacker . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNScom addrNSattacker : -> Address .
+
+  ops zoneRoot zoneCom zoneAttacker : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker > . --- glue
+
+  eq zoneAttacker =
+    --- authoritative data
+    < 'attacker . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker >
+
+    --- Deep delegation chain
+    < 'sub1 . 'attacker . 'com . root, ns, testTTL, 'sub2 . 'attacker . 'com . root >
+    < 'sub2 . 'attacker . 'com . root, ns, testTTL, 'sub3 . 'attacker . 'com . root >
+    < 'sub3 . 'attacker . 'com . root, ns, testTTL, 'sub4 . 'attacker . 'com . root >
+    < 'sub4 . 'attacker . 'com . root, ns, testTTL, 'sub5 . 'attacker . 'com . root >
+    < 'sub5 . 'attacker . 'com . root, ns, testTTL, 'sub6 . 'attacker . 'com . root >
+    < 'sub6 . 'attacker . 'com . root, ns, testTTL, 'sub7 . 'attacker . 'com . root >
+    < 'sub7 . 'attacker . 'com . root, ns, testTTL, 'sub8 . 'attacker . 'com . root >
+    < 'sub8 . 'attacker . 'com . root, ns, testTTL, 'sub9 . 'attacker . 'com . root >
+    < 'sub9 . 'attacker . 'com . root, ns, testTTL, 'sub10 . 'attacker . 'com . root >
+    < 'sub10 . 'attacker . 'com . root, ns, testTTL, 'sub11 . 'attacker . 'com . root >
+    < 'sub11 . 'attacker . 'com . root, ns, testTTL, 'sub12 . 'attacker . 'com . root >
+    < 'sub12 . 'attacker . 'com . root, ns, testTTL, 'sub13 . 'attacker . 'com . root > .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: nilCache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- attacker's authoritative name server
+    < addrNSattacker : Nameserver | db: zoneAttacker, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+--- rew numActorMsgsRecvd(rAddr, initConfig) .
+--- rew numActorMsgsSent(cAddr ; addrNSattacker, initConfig) .
+rew msgAmpFactor(cAddr ; addrNSattacker, rAddr, initConfig) .

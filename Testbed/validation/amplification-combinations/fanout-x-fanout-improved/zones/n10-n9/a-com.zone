@@ -1,0 +1,115 @@
+$TTL 3600
+@                       IN      SOA     server.a.com. username.a.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.a.com.
+ns.a.com.               IN      A       172.20.0.5
+
+
+q.a.com.		IN		NS		n1.a.com.
+q.a.com.		IN		NS		n2.a.com.
+q.a.com.		IN		NS		n3.a.com.
+q.a.com.		IN		NS		n4.a.com.
+q.a.com.		IN		NS		n5.a.com.
+q.a.com.		IN		NS		n6.a.com.
+q.a.com.		IN		NS		n7.a.com.
+q.a.com.		IN		NS		n8.a.com.
+q.a.com.		IN		NS		n9.a.com.
+
+n1.a.com.		IN		NS		n11.b.com.
+n1.a.com.		IN		NS		n12.b.com.
+n1.a.com.		IN		NS		n13.b.com.
+n1.a.com.		IN		NS		n14.b.com.
+n1.a.com.		IN		NS		n15.b.com.
+n1.a.com.		IN		NS		n16.b.com.
+n1.a.com.		IN		NS		n17.b.com.
+n1.a.com.		IN		NS		n18.b.com.
+n1.a.com.		IN		NS		n19.b.com.
+
+n2.a.com.		IN		NS		n21.b.com.
+n2.a.com.		IN		NS		n22.b.com.
+n2.a.com.		IN		NS		n23.b.com.
+n2.a.com.		IN		NS		n24.b.com.
+n2.a.com.		IN		NS		n25.b.com.
+n2.a.com.		IN		NS		n26.b.com.
+n2.a.com.		IN		NS		n27.b.com.
+n2.a.com.		IN		NS		n28.b.com.
+n2.a.com.		IN		NS		n29.b.com.
+
+n3.a.com.		IN		NS		n31.b.com.
+n3.a.com.		IN		NS		n32.b.com.
+n3.a.com.		IN		NS		n33.b.com.
+n3.a.com.		IN		NS		n34.b.com.
+n3.a.com.		IN		NS		n35.b.com.
+n3.a.com.		IN		NS		n36.b.com.
+n3.a.com.		IN		NS		n37.b.com.
+n3.a.com.		IN		NS		n38.b.com.
+n3.a.com.		IN		NS		n39.b.com.
+
+n4.a.com.		IN		NS		n41.b.com.
+n4.a.com.		IN		NS		n42.b.com.
+n4.a.com.		IN		NS		n43.b.com.
+n4.a.com.		IN		NS		n44.b.com.
+n4.a.com.		IN		NS		n45.b.com.
+n4.a.com.		IN		NS		n46.b.com.
+n4.a.com.		IN		NS		n47.b.com.
+n4.a.com.		IN		NS		n48.b.com.
+n4.a.com.		IN		NS		n49.b.com.
+
+n5.a.com.		IN		NS		n51.b.com.
+n5.a.com.		IN		NS		n52.b.com.
+n5.a.com.		IN		NS		n53.b.com.
+n5.a.com.		IN		NS		n54.b.com.
+n5.a.com.		IN		NS		n55.b.com.
+n5.a.com.		IN		NS		n56.b.com.
+n5.a.com.		IN		NS		n57.b.com.
+n5.a.com.		IN		NS		n58.b.com.
+n5.a.com.		IN		NS		n59.b.com.
+
+n6.a.com.		IN		NS		n61.b.com.
+n6.a.com.		IN		NS		n62.b.com.
+n6.a.com.		IN		NS		n63.b.com.
+n6.a.com.		IN		NS		n64.b.com.
+n6.a.com.		IN		NS		n65.b.com.
+n6.a.com.		IN		NS		n66.b.com.
+n6.a.com.		IN		NS		n67.b.com.
+n6.a.com.		IN		NS		n68.b.com.
+n6.a.com.		IN		NS		n69.b.com.
+
+n7.a.com.		IN		NS		n71.b.com.
+n7.a.com.		IN		NS		n72.b.com.
+n7.a.com.		IN		NS		n73.b.com.
+n7.a.com.		IN		NS		n74.b.com.
+n7.a.com.		IN		NS		n75.b.com.
+n7.a.com.		IN		NS		n76.b.com.
+n7.a.com.		IN		NS		n77.b.com.
+n7.a.com.		IN		NS		n78.b.com.
+n7.a.com.		IN		NS		n79.b.com.
+
+n8.a.com.		IN		NS		n81.b.com.
+n8.a.com.		IN		NS		n82.b.com.
+n8.a.com.		IN		NS		n83.b.com.
+n8.a.com.		IN		NS		n84.b.com.
+n8.a.com.		IN		NS		n85.b.com.
+n8.a.com.		IN		NS		n86.b.com.
+n8.a.com.		IN		NS		n87.b.com.
+n8.a.com.		IN		NS		n88.b.com.
+n8.a.com.		IN		NS		n89.b.com.
+
+n9.a.com.		IN		NS		n91.b.com.
+n9.a.com.		IN		NS		n92.b.com.
+n9.a.com.		IN		NS		n93.b.com.
+n9.a.com.		IN		NS		n94.b.com.
+n9.a.com.		IN		NS		n95.b.com.
+n9.a.com.		IN		NS		n96.b.com.
+n9.a.com.		IN		NS		n97.b.com.
+n9.a.com.		IN		NS		n98.b.com.
+n9.a.com.		IN		NS		n99.b.com.
+
+n10.a.com.		IN		NS		n101.b.com.
+n10.a.com.		IN		NS		n102.b.com.
+n10.a.com.		IN		NS		n103.b.com.
+n10.a.com.		IN		NS		n104.b.com.
+n10.a.com.		IN		NS		n105.b.com.
+n10.a.com.		IN		NS		n106.b.com.
+n10.a.com.		IN		NS		n107.b.com.
+n10.a.com.		IN		NS		n108.b.com.
+n10.a.com.		IN		NS		n109.b.com.

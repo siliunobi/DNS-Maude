@@ -1,0 +1,10 @@
+name: "rewrite-x-fanout-x-referral"
+zonesDir: validation/amplification-combinations/rewrite-x-fanout-x-referral/zones
+target: "target"
+measure: "volume"
+queries:
+  - zone: "w.q.a.com"
+    record: "A"
+qmin: false
+testbed: validation/amplification-combinations/rewrite-x-fanout-x-referral/testbed.yaml
+saveLogs: true

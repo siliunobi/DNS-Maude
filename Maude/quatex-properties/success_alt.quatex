@@ -1,0 +1,2 @@
+successRatio( ) = if { s.sat(0) } then { s.rval(0) } else # successRatio( ) fi ;
+eval E[ successRatio( ) ] ;

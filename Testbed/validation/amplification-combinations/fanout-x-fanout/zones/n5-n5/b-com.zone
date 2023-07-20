@@ -1,0 +1,65 @@
+$TTL 3600
+@                       IN      SOA     server.b.com. username.b.com. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.b.com.
+ns.b.com.         IN      A       172.20.0.5
+
+
+
+    
+n1.b.com. NS n1n1.c.com.
+    
+n1.b.com. NS n1n2.c.com.
+    
+n1.b.com. NS n1n3.c.com.
+    
+n1.b.com. NS n1n4.c.com.
+    
+n1.b.com. NS n1n5.c.com.
+    
+
+    
+n2.b.com. NS n2n1.c.com.
+    
+n2.b.com. NS n2n2.c.com.
+    
+n2.b.com. NS n2n3.c.com.
+    
+n2.b.com. NS n2n4.c.com.
+    
+n2.b.com. NS n2n5.c.com.
+    
+
+    
+n3.b.com. NS n3n1.c.com.
+    
+n3.b.com. NS n3n2.c.com.
+    
+n3.b.com. NS n3n3.c.com.
+    
+n3.b.com. NS n3n4.c.com.
+    
+n3.b.com. NS n3n5.c.com.
+    
+
+    
+n4.b.com. NS n4n1.c.com.
+    
+n4.b.com. NS n4n2.c.com.
+    
+n4.b.com. NS n4n3.c.com.
+    
+n4.b.com. NS n4n4.c.com.
+    
+n4.b.com. NS n4n5.c.com.
+    
+
+    
+n5.b.com. NS n5n1.c.com.
+    
+n5.b.com. NS n5n2.c.com.
+    
+n5.b.com. NS n5n3.c.com.
+    
+n5.b.com. NS n5n4.c.com.
+    
+n5.b.com. NS n5n5.c.com.

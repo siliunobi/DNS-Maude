@@ -1,0 +1,17 @@
+$TTL 3600
+@				IN		SOA		server.r17.a.com. username.r17.a.com. (2006032201 7200 3600 1209600 36000)
+				IN		NS		n17n1.b.com.
+				IN		NS		n17n2.b.com.
+				IN		NS		n17n3.b.com.
+				IN		NS		n17n4.b.com.
+				IN		NS		n17n5.b.com.
+				IN		NS		n17n6.b.com.
+n17n1.b.com.		IN		A		172.20.0.6
+n17n2.b.com.		IN		A		172.20.0.6
+n17n3.b.com.		IN		A		172.20.0.6
+n17n4.b.com.		IN		A		172.20.0.6
+n17n5.b.com.		IN		A		172.20.0.6
+n17n6.b.com.		IN		A		172.20.0.6
+
+
+w.r17.a.com.		IN		CNAME		w.r18.a.com.

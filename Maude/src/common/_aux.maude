@@ -1,0 +1,1562 @@
+load prelim
+load parameters
+
+mod AUX-COMMON is 
+  inc NODE + MONITOR + SORTS + PARAMETERS-COMMON + CONVERSION .
+
+  vars NAME NAME' NAME'' NAME''' TGTNAME ONAME QNAME SNAME SNAME_FULL ANCESTOR : Name .
+  vars R R' : Record .
+  vars RTYPE RTYPE' QTYPE : RType .
+  var RDATA : RData .
+  vars RS RS' RS'' ANS ANS' AUTH ADD ANS_CHAIN : List{Record} .
+  vars CACHE CACHE' : Cache .
+  vars NODATA_CACHE NODATA_CACHE' : NodataCache .
+  vars NXDOMAIN_CACHE NXDOMAIN_CACHE' : NxdomainCache .
+  vars ADDR ADDR' : Address .
+  vars N N' RCODE : Nat .
+  var B : Bool .
+  vars NA NA' : Map{Name, Address} .
+  vars ZS ZS' SLIST SLIST' SBELT : ZoneState .
+  vars ID ID' ID'' : Id .
+  var NL : NameList .
+  vars Q Q' : Query .
+  vars QSTATE QSTATE' : QueryState .
+  vars QSS QSS' QSS'' QSS_ORIG' : QueryStateSet .
+  vars QMIN QMIN' : QMinState .
+  vars IN IN' : IdNatMap .
+  var QUEUE : Queue .
+  var QE : QueueEntry .
+  vars TTL TTL' T MIN_BOUND MAX_BOUND : Float .
+  var RESP : Response .
+  var QID : Qid .
+  var C : Config .
+  var STATE : AttributeSet .
+
+  ------------------------
+  --- [DECONSTRUCTORS] ---
+  ------------------------
+  --- The following functions can be used in situations where pattern matching is inconvenient.
+
+  --- Returns the type of the record.
+  op rtype : Record -> RType .
+  eq rtype(< NAME, RTYPE, TTL, RDATA > ) = RTYPE .
+
+  --- Returns the owner name of the record.
+  op ownerName : Record -> Name .
+  eq ownerName(< NAME, RTYPE, TTL, RDATA >) = NAME .
+
+  --- Returns the RCODE of a response
+  op rcode : Response -> Nat .
+  eq rcode(response(ID, NAME, ANS, AUTH, ADD, RCODE)) = RCODE .
+
+  --- Returns the last (highest in hierarchy) label of the given name.
+  op lastLabel : Name -> Name .
+  ceq lastLabel(NAME . NAME') = NAME'
+    if isSingleLabel(NAME') .
+  eq lastLabel(NAME) = NAME [owise] .
+
+  --------------------------------
+  --- [BASIC HELPER FUNCTIONS] ---
+  --------------------------------
+
+  --- Returns the number of labels in the given name.
+  op numLabels : Name -> Nat .
+  ceq numLabels(NAME . NAME') = 1 + numLabels(NAME')
+    if isSingleLabel(NAME) .
+  ceq numLabels(NAME) = 1
+    if isSingleLabel(NAME) .
+
+  --- Returns the byte length of a domain name.
+  ---  The byte length of a label is the number of characters plus one (for the length byte). The root label consists
+  ---  only of the length byte and has thus byte length 1.
+  ---  For the "symbolic" labels we assume a length of 2 (since the label consists at least of the length byte and one
+  ---  character).
+  op nameLength : Name -> Nat .
+  eq nameLength(root) = 1 . --- the root label consists only of a length byte
+  eq nameLength(wildcard) = 2 . --- wildcard is a normal "*" character plus the length byte
+  eq nameLength(label(N)) = 2 . --- the symbolic label must have at least 2 bytes, one character plus the length byte
+  eq nameLength(label2(N, N')) = 2 . --- same
+  eq nameLength(NAME . NAME') = nameLength(NAME) + nameLength(NAME') .
+  eq nameLength(QID) = 1 + length(string(QID)) .
+
+    --- Returns whether the given id consists of a single component.
+  op isSingleId : Id -> Bool .
+  eq isSingleId(ID .. ID') = false .
+  eq isSingleId(ID) = true [owise] .
+
+  --- Returns the first component of the given Id.
+  op getClientId : Id -> Id .
+  ceq getClientId(ID .. ID') = ID
+    if isSingleId(ID) .
+  ceq getClientId(ID) = ID
+    if isSingleId(ID) .
+
+  --- Returns whether the given query is a client query.
+  ---   To determine this, the (current) query id is searched for a component that indicates a resolver subquery.
+  op isClientQuery : QueryState -> Bool .
+  ceq isClientQuery(queryState(Q, ADDR, NAME, ID, QMIN, ANS, SLIST))
+    = false
+    if ID' .. N := ID . --- subquery in last component
+  ceq isClientQuery(queryState(Q, ADDR, NAME, ID, QMIN, ANS, SLIST))
+    = false
+    if ID' .. N .. ID'' := ID . --- subquery somewhere in between component
+  eq isClientQuery(QSTATE) = true [owise] . --- no subquery anywhere
+
+  --- Returns whether the given name consists of a single label.
+  op isSingleLabel : Name -> Bool .
+  eq isSingleLabel(NAME . NAME') = false .
+  eq isSingleLabel(NAME) = true [owise] .
+
+  --- Returns the name of the parent domain, i.e., strips the first label from the given name.
+  ---   The function is not defined for names consisting of a single label.
+  op parentDomain : Name -> [Name] .
+  ceq parentDomain(NAME . NAME') = NAME'
+    if isSingleLabel(NAME) .
+
+  --- Returns the "match count" of a name and a target name, i.e., the number of labels where they agree (starting from
+  ---   the last one).
+  ---   Returns 0 for invalid arguments.
+  --- Args: target name, other name
+  op matchCount : Name Name -> Nat .
+  eq matchCount(TGTNAME, TGTNAME) = numLabels(TGTNAME) .
+  ceq matchCount(TGTNAME, ONAME) = numLabels(ONAME)
+    if NAME . ONAME := TGTNAME .
+  eq matchCount(TGTNAME, ONAME) = 0 [owise] . --- error
+
+  --- Returns whether name 1 is "closer" to the target name than name 2, i.e., whether it has more matching labels,
+  ---   starting from the end.
+  --- Args: target name, name 1, name 2
+  op isCloser : Name Name Name -> Bool .
+  eq isCloser(TGTNAME, NAME, NAME')
+    = matchCount(TGTNAME, NAME) > matchCount(TGTNAME, NAME') .
+
+  --- Returns whether the delegations in a list of records (e.g., received in a referral response) are actually
+  ---   better than the known delegation.
+  --- Args: target name, delegation records, known delegation name (i.e., the closest zone for which we know a nameserver)
+  op delegationIsBetter : Name List{Record} Name -> Bool .
+  eq delegationIsBetter(TGTNAME, < NAME', ns, TTL, NAME'' > RS, NAME)
+    = isCloser(TGTNAME, NAME', NAME) and delegationIsBetter(TGTNAME, RS, NAME) .
+  eq delegationIsBetter(TGTNAME, R RS, NAME) = false [owise] . --- non-NS records in the delegation records
+  eq delegationIsBetter(TGTNAME, nil, NAME) = true .
+
+  --- Returns whether the list contains the given address.
+  --- Args: address, list
+  op inAddrList : Address AddrList -> Bool .
+  eq inAddrList(ADDR, ADDR' ; AL)
+    = if ADDR == ADDR' then true else inAddrList(ADDR, AL) fi .
+  eq inAddrList(ADDR, nil) = false .
+
+  --- Returns the size of the given QueryStateSet as a Float.
+  op sizeQSSFloat : QueryStateSet -> Float .
+  eq sizeQSSFloat(QSTATE ;; QSS) = 1.0 + sizeQSSFloat(QSS) .
+  eq sizeQSSFloat(eptQSS) = 0.0 .
+
+  --- Returns whether the config contains an actor with the given address.
+  --- Args: config, address
+  op hasActorWithAddr : Config Address -> Bool .
+  eq hasActorWithAddr(< ADDR : AT:ActorType | STATE:AttributeSet > C:Config, ADDR')
+    = if ADDR == ADDR'
+        then true
+        else hasActorWithAddr(C:Config, ADDR')
+      fi .
+  eq hasActorWithAddr(C:Config, ADDR') = false [owise] .
+
+  ----------------------------
+  --- [CACHE MANIPULATION] ---
+  ----------------------------
+
+  --- Returns whether two record types match.
+  ---   Two types match if they are the same or if (at least) one of them is anyType.
+  op match : RType RType -> Bool [comm] .
+  eq match(RTYPE, RTYPE) = true .
+  eq match(RTYPE, anyType) = true .
+  eq match(RTYPE, RTYPE') = false [owise] .
+
+  --- Returns those records that match the given type.
+  --- Args: type, records
+  op filterRType : RType List{Record} -> List{Record} .
+  eq filterRType(RTYPE, R RS)
+    = if match(RTYPE, rtype(R))
+        then R filterRType(RTYPE, RS)
+        else filterRType(RTYPE, RS)
+      fi .
+  eq filterRType(RTYPE, nil) = nil .
+
+  --- Retains only the first occurrence of each record in the list.
+  op removeDuplicates : List{Record} -> List{Record} .
+  eq removeDuplicates(RS R)
+    = if occurs(R, RS)
+        then removeDuplicates(RS)
+        else removeDuplicates(RS) R
+      fi .
+  eq removeDuplicates(nil) = nil .
+
+  --- Turns the list of records into a cache, with each record having the given credibility.
+  --- Args: records, credibility
+  op listToCache : List{Record} Nat -> Cache .
+  eq listToCache(R RS, N) = cacheEntry(R, N) listToCache(RS, N) .
+  eq listToCache(nil, N) = nilCache .
+
+  --- Turns the cache into a list of records, ignoring credibility.
+  op cacheToList : Cache -> List{Record} .
+  eq cacheToList(cacheEntry(R, N) CACHE) = R cacheToList(CACHE) .
+  eq cacheToList(nilCache) = nil .
+
+  --- Filters the cache for entries with at least the given credibility and returns them as a list of records.
+  --- Args: cache, min credibility
+  op filterCacheCred : Cache Nat -> List{Record} .
+  eq filterCacheCred(cacheEntry(R, N') CACHE, N)
+    = if N' >= N
+        then R filterCacheCred(CACHE, N)
+        else filterCacheCred(CACHE, N)
+      fi .
+  eq filterCacheCred(nilCache, N) = nil .
+
+  --- Returns the minimum TTL of any of the records in the list, or 0.0 if the list is empty.
+  op minTTLInList : List{Record} -> Float .
+  eq minTTLInList(< NAME, RTYPE, TTL, RDATA > RS) = $minTTLInList(RS, TTL) .
+  eq minTTLInList(nil) = 0.0 .
+
+  --- Args: records, current min
+  op $minTTLInList : List{Record} Float -> Float .
+  eq $minTTLInList(< NAME, RTYPE, TTL, RDATA > RS, TTL') = $minTTLInList(RS, min(TTL, TTL')) .
+  eq $minTTLInList(nil, TTL') = TTL' .
+
+  --- Clamps the TTL for the given bounds.
+  --- Args: given TTL, lower bound, upper bound
+  op clampTTL : Float Float Float -> Float .
+  eq clampTTL(TTL, MIN_BOUND, MAX_BOUND) = min(max(TTL, MIN_BOUND), MAX_BOUND) .
+
+  --- Turns the given list of records into a cache with the given credibility.
+  ---   Relative TTLs are converted to an absolute expiration time, where the minimum TTL of any of the records is used
+  ---   for all records.
+  --- Args: records, credibility score, current time
+  op rrSetToCache : List{Record} Nat Float -> Cache .
+  ceq rrSetToCache(RS, N, T) = $rrSetToCache(RS, N, T, TTL')
+    if TTL := minTTLInList(RS) /\
+       TTL' := if boundTTL? then clampTTL(TTL, minTTL, maxTTL) else TTL fi .
+
+  --- Args: records, credibility score, current time, TTL to use
+  op $rrSetToCache : List{Record} Nat Float Float -> Cache .
+  eq $rrSetToCache(< NAME, RTYPE, TTL, RDATA > RS, N, T, TTL')
+    = cacheEntry(< NAME, RTYPE, T + TTL', RDATA >, N) $rrSetToCache(RS, N, T, TTL') . --- convert TTL to expiration time
+  eq $rrSetToCache(nil, N, T, TTL') = nilCache .
+
+  --- Converts the absolute expiration times of the records in the given list to relative TTLs, by subtracting the
+  ---   current time.
+  ---   Negative TTLs are clamped to 0.0. This may be necessary because a record may have expired while the query
+  ---   was still being processed, but after it was "used" in the resolution.
+  --- Args: records, current time
+  op convertTTLAbsToRel : List{Record} Float -> List{Record} .
+  eq convertTTLAbsToRel(< NAME, RTYPE, TTL, RDATA > RS, T)
+    = < NAME, RTYPE, if TTL - T >= 0.0 then TTL - T else 0.0 fi, RDATA > convertTTLAbsToRel(RS, T) .
+  eq convertTTLAbsToRel(nil, T) = nil .
+
+  --- Converts the absolute expiration times of the records in all sections of the given response to relative TTLs, by
+  ---   subtracting the current time.
+  ---   Negative TTLs are clamped to 0.0. This may be necessary because a record may have expired while the query
+  ---   was still being processed, but after it was "used" in the resolution.
+  --- Args: response, current time
+  op convertTTLAbsToRelResponse : Response Float -> Response .
+  eq convertTTLAbsToRelResponse(response(ID, NAME, ANS, AUTH, ADD, RCODE), T)
+    = response(ID, NAME, convertTTLAbsToRel(ANS, T), convertTTLAbsToRel(AUTH, T), convertTTLAbsToRel(ADD, T), RCODE) .
+
+  --- Returns the credibility associated with the given RRset in the cache, or 0 if the RRset is not in cache.
+  ---   Assumes that all records of an RRset have the same credibility, which is the case if the cache is only
+  ---   manipulated using the corresponding functions.
+  --- Args: name, record type, cache
+  op cacheGetCredRRset : Name RType Cache -> Nat .
+  eq cacheGetCredRRset(NAME, RTYPE, cacheEntry(< NAME', RTYPE', TTL, RDATA >, N) CACHE)
+    = if NAME == NAME' and RTYPE == RTYPE'
+        then N
+        else cacheGetCredRRset(NAME, RTYPE, CACHE)
+      fi .
+  eq cacheGetCredRRset(NAME, RTYPE, nilCache) = 0 .
+
+  --- Removes the given RRset from the cache.
+  --- Args: name, record type, cache
+  op cacheRemoveRRset : Name RType Cache -> Cache .
+  eq cacheRemoveRRset(NAME, RTYPE, cacheEntry(< NAME', RTYPE', TTL, RDATA >, N) CACHE)
+    = if NAME == NAME' and RTYPE == RTYPE'
+        then cacheRemoveRRset(NAME, RTYPE, CACHE)
+        else cacheEntry(< NAME', RTYPE', TTL, RDATA >, N) cacheRemoveRRset(NAME, RTYPE, CACHE)
+      fi .
+  eq cacheRemoveRRset(NAME, RTYPE, nilCache) = nilCache .
+
+  --- Filters all records from the given list that are part of the RRset specified by the given name and type.
+  ---   This function should not be used with anyType, as it is implemented as a simple wrapper for lookupRecords.
+  --- Args: name, record type, records
+  op filterRRset : Name RType List{Record} -> List{Record} .
+  eq filterRRset(NAME, RTYPE, RS) = lookupRecords(NAME, RTYPE, RS) .
+
+  --- The complement of the above function, i.e., filters all records that are NOT part of the given RRset.
+  --- Args: name, record type, records
+  op filterNotRRset : Name RType List{Record} -> List{Record} .
+  eq filterNotRRset(NAME, RTYPE, < NAME', RTYPE', TTL, RDATA > RS)
+    = if NAME =/= NAME' or not(match(RTYPE, RTYPE'))
+        then < NAME', RTYPE', TTL, RDATA > filterNotRRset(NAME, RTYPE, RS)
+        else filterNotRRset(NAME, RTYPE, RS)
+      fi .
+  eq filterNotRRset(NAME, RTYPE, nil) = nil .
+
+  --- Updates the cache with the given new RRset if its credibility is at least as high as that of the existing RRset
+  ---   or if there is no existing RRset.
+  ---   The relative TTLs of the records are converted to absolute expiration times.
+  ---   Assumes that the list contains a SINGLE RRset, i.e., all records have the same owner and type.
+  --- Args: old cache, new RRset, credibility of new RRset, current time
+  op updateCacheRRsetCred : Cache List{Record} Nat Float -> Cache .
+  ceq updateCacheRRsetCred(CACHE, RS, N, T)
+    = if cacheGetCredRRset(NAME, RTYPE, CACHE) <= N --- RRset in cache has lower/equal credibility (or doesn't exist)
+        then cacheRemoveRRset(NAME, RTYPE, CACHE) rrSetToCache(RS, N, T) --- replace the RRset
+        else CACHE --- retain the old cache
+      fi
+    if < NAME, RTYPE, TTL, RDATA > RS' := RS .
+  eq updateCacheRRsetCred(CACHE, nil, N, T) = CACHE .
+
+  --- Updates the cache with new data if its credibility is at least as high as that of the existing data.
+  ---   Note that the new data can consist of multiple RRsets.
+  ---   The relative TTLs of the records are converted to absolute expiration times.
+  --- Args: cache, new records, credibility score of new records, current time
+  op updateCacheCred : Cache List{Record} Nat Float -> Cache .
+  ceq updateCacheCred(CACHE, RS, N, T)
+    = updateCacheCred(CACHE', filterNotRRset(NAME, RTYPE, RS), N, T)
+    if < NAME, RTYPE, TTL, RDATA > RS' := RS /\
+       CACHE' := updateCacheRRsetCred(CACHE, filterRRset(NAME, RTYPE, RS), N, T) .
+  eq updateCacheCred(CACHE, nil, N, T) = CACHE .
+
+  --- Update the cache with the answer section from an authoritative answer, inserting the records with the appropriate
+  ---   credibility score.
+  --- Notes:
+  ---   * In a CNAME answer, only the first CNAME is authoritative, see RFC 2181, §5.4.1. The non-authoritative records
+  ---     have credibility score 2.
+  ---   * In a DNAME answer, both the DNAME record as well as the synthesized CNAME record are considered
+  ---     authoritative and inserted into cache. This is not clearly specified.
+  ---   * We assume that the answer section is sorted according to the rewrites, but this is not mandated by the
+  ---     specification.
+  ---   * The relative TTLs of the records are converted to absolute expiration times.
+  --- Args: cache, answer section, current time
+  op updateCacheAuthAns : Cache List{Record} Float -> Cache .
+  ceq updateCacheAuthAns(CACHE, < NAME, cname, TTL, NAME' > RS, T) --- answer section starts with a CNAME record
+    = updateCacheCred(CACHE', RS, 2, T)
+    if CACHE' := updateCacheCred(CACHE, < NAME, cname, TTL, NAME' >, 5, T) .
+  ceq updateCacheAuthAns(CACHE, < NAME, dname, TTL, NAME' > < NAME'', cname, TTL', NAME''' > RS, T)
+    = updateCacheCred(CACHE', RS, 2, T)
+    if CACHE' := updateCacheCred(CACHE, < NAME, dname, TTL, NAME' > < NAME'', cname, TTL', NAME''' >, 5, T) .
+  eq updateCacheAuthAns(CACHE, RS, T) = updateCacheCred(CACHE, RS, 5, T) [owise] .
+
+  --- Updates the NODATA cache with new data, inserting the entries at the appropriate credibility level.
+  --- Notes:
+  ---   * We use the same credibility levels as for positive answers, i.e., if there is no rewrite chain in the
+  ---     answer section, the NODATA has credibility 5. Otherwise, it has credibility 2.
+  ---   * This function can be called for positive and negative responses. The NODATA cache is only updated if the
+  ---     response is actually a NODATA response with an SOA record in the authority section.
+  ---   * The relative TTLs of the records are converted to absolute expiration times.
+  --- Args: NODATA cache, QNAME, QTYPE, answer section, authority section, RCODE, current time
+  op updateNodataCache : NodataCache Name RType List{Record} List{Record} Nat Float -> NodataCache .
+  eq updateNodataCache(NODATA_CACHE, NAME, RTYPE, ANS, AUTH, RCODE, T)
+    = if ANS == nil
+        then $updateNodataCache(NODATA_CACHE, NAME, RTYPE, ANS, AUTH, RCODE, 5, T)
+        else $updateNodataCache(NODATA_CACHE, findBestCanonicalName(NAME, ANS), RTYPE, ANS, AUTH, RCODE, 2, T)
+      fi .
+
+  --- Args: NODATA cache, QNAME, QTYPE, answer section, authority section, RCODE, credibility level, current time
+  op $updateNodataCache : NodataCache Name RType List{Record} List{Record} Nat Nat Float -> NodataCache .
+  --- case 1: existing entry, replace if new credibility is >= old
+  ceq $updateNodataCache(NODATA_CACHE, NAME, RTYPE, ANS, AUTH, 0, N, T)
+    = if N >= N'
+        then nodataEntry(NAME, RTYPE, < NAME', soa, T + TTL', RDATA >, N) NODATA_CACHE'
+        else NODATA_CACHE
+      fi
+    if nodataEntry(NAME, RTYPE, R, N') NODATA_CACHE' := NODATA_CACHE /\
+       < NAME', soa, TTL, RDATA > := AUTH /\
+       TTL' := if boundNodataTTL? then clampTTL(TTL, minNodataTTL, maxNodataTTL) else TTL fi .
+  --- case 2: create new entry
+  ceq $updateNodataCache(NODATA_CACHE, NAME, RTYPE, ANS, AUTH, 0, N, T)
+    = nodataEntry(NAME, RTYPE, < NAME', soa, T + TTL', RDATA >, N) NODATA_CACHE
+    if < NAME', soa, TTL, RDATA > := AUTH /\
+       TTL' := if boundNodataTTL? then clampTTL(TTL, minNodataTTL, maxNodataTTL) else TTL fi [owise] .
+  --- case 3: not a NODATA response (wrong RCODE or no SOA in Authority section)
+  eq $updateNodataCache(NODATA_CACHE, NAME, RTYPE, ANS, AUTH, RCODE, N, T) = NODATA_CACHE [owise] .
+
+  --- Updates the NXDOMAIN cache with new data, inserting the entries at the appropriate credibility level.
+  --- Notes:
+  ---   * We use the same credibility levels as for positive answers, i.e., if there is no rewrite chain in the
+  ---     answer section, the NXDOMAIN has credibility 5. Otherwise, it has credibility 2.
+  ---   * This function can be called for positive and negative responses. The NXDOMAIN cache is only updated if the
+  ---     response is actually a NXDOMAIN response with an SOA record in the authority section.
+  ---   * The relative TTLs of the records are converted to absolute expiration times.
+  --- Args: NXDOMAIN cache, QNAME, answer section, authority section, RCODE, current time
+  op updateNxdomainCache : NxdomainCache Name List{Record} List{Record} Nat Float -> NxdomainCache .
+  eq updateNxdomainCache(NXDOMAIN_CACHE, NAME, ANS, AUTH, RCODE, T)
+    = if ANS == nil
+        then $updateNxdomainCache(NXDOMAIN_CACHE, NAME, ANS, AUTH, RCODE, 5, T)
+        else $updateNxdomainCache(NXDOMAIN_CACHE, findBestCanonicalName(NAME, ANS), ANS, AUTH, RCODE, 2, T)
+      fi .
+
+  --- Args: NXDOMAIN cache, QNAME, answer section, authority section, RCODE, credibility level, current time
+  op $updateNxdomainCache : NxdomainCache Name List{Record} List{Record} Nat Nat Float -> NxdomainCache .
+  --- case 1: existing entry, replace if new credibility is >= old
+  ceq $updateNxdomainCache(NXDOMAIN_CACHE, NAME, ANS, AUTH, 3, N, T)
+    = if N >= N'
+        then nxdomainEntry(NAME, < NAME', soa, T + TTL', RDATA >, N) NXDOMAIN_CACHE'
+        else NXDOMAIN_CACHE
+      fi
+    if nxdomainEntry(NAME, R, N') NXDOMAIN_CACHE' := NXDOMAIN_CACHE /\
+       < NAME', soa, TTL, RDATA > := AUTH /\
+       TTL' := if boundNxdomainTTL? then clampTTL(TTL, minNxdomainTTL, maxNxdomainTTL) else TTL fi .
+  --- case 2: create new entry
+  ceq $updateNxdomainCache(NXDOMAIN_CACHE, NAME, ANS, AUTH, 3, N, T)
+    = nxdomainEntry(NAME, < NAME', soa, T + TTL', RDATA >, N) NXDOMAIN_CACHE
+    if < NAME', soa, TTL, RDATA > := AUTH /\
+       TTL' := if boundNxdomainTTL? then clampTTL(TTL, minNxdomainTTL, maxNxdomainTTL) else TTL fi [owise] .
+  --- case 3: not a NXDOMAIN response (wrong RCODE or no SOA in Authority section)
+  eq $updateNxdomainCache(NXDOMAIN_CACHE, NAME, ANS, AUTH, RCODE, N, T) = NXDOMAIN_CACHE [owise] .
+
+  --- Filter the cache for entries with TTL >= the given value
+  --- Args: cache, TTL
+  op filterCacheTTLGreaterEqual : Cache Float -> Cache .
+  eq filterCacheTTLGreaterEqual(cacheEntry(< NAME, RTYPE, TTL, RDATA >, N) CACHE, TTL')
+    = if TTL >= TTL'
+        then cacheEntry(< NAME, RTYPE, TTL, RDATA >, N) filterCacheTTLGreaterEqual(CACHE, TTL')
+        else filterCacheTTLGreaterEqual(CACHE, TTL')
+      fi .
+  eq filterCacheTTLGreaterEqual(nilCache, TTL') = nilCache .
+
+  --- Filter the cache for entries with TTL > the given value
+  --- Args: cache, TTL
+  op filterCacheTTLGreaterThan : Cache Float -> Cache .
+  eq filterCacheTTLGreaterThan(cacheEntry(< NAME, RTYPE, TTL, RDATA >, N) CACHE, TTL')
+    = if TTL > TTL'
+        then cacheEntry(< NAME, RTYPE, TTL, RDATA >, N) filterCacheTTLGreaterThan(CACHE, TTL')
+        else filterCacheTTLGreaterThan(CACHE, TTL')
+      fi .
+  eq filterCacheTTLGreaterThan(nilCache, TTL') = nilCache .
+
+  --- Filter the NODATA cache for entries with TTL >= the given value
+  --- Args: NODATA cache, TTL
+  op filterNodataCacheTTLGreaterEqual : NodataCache Float -> NodataCache .
+  eq filterNodataCacheTTLGreaterEqual(nodataEntry(NAME, RTYPE, < NAME', soa, TTL, RDATA >, N) NODATA_CACHE, TTL')
+    = if TTL >= TTL'
+        then nodataEntry(NAME, RTYPE, < NAME', soa, TTL, RDATA >, N) filterNodataCacheTTLGreaterEqual(NODATA_CACHE, TTL')
+        else filterNodataCacheTTLGreaterEqual(NODATA_CACHE, TTL')
+      fi .
+  eq filterNodataCacheTTLGreaterEqual(nilNodataCache, TTL') = nilNodataCache .
+
+  --- Filter the NODATA cache for entries with TTL > the given value
+  --- Args: NODATA cache, TTL
+  op filterNodataCacheTTLGreaterThan : NodataCache Float -> NodataCache .
+  eq filterNodataCacheTTLGreaterThan(nodataEntry(NAME, RTYPE, < NAME', soa, TTL, RDATA >, N) NODATA_CACHE, TTL')
+    = if TTL > TTL'
+        then nodataEntry(NAME, RTYPE, < NAME', soa, TTL, RDATA >, N) filterNodataCacheTTLGreaterThan(NODATA_CACHE, TTL')
+        else filterNodataCacheTTLGreaterThan(NODATA_CACHE, TTL')
+      fi .
+  eq filterNodataCacheTTLGreaterThan(nilNodataCache, TTL') = nilNodataCache .
+
+  --- Filter the NXDOMAIN cache for entries with TTL >= the given value
+  --- Args: NXDOMAIN cache, TTL
+  op filterNxdomainCacheTTLGreaterEqual : NxdomainCache Float -> NxdomainCache .
+  eq filterNxdomainCacheTTLGreaterEqual(nxdomainEntry(NAME, < NAME', soa, TTL, RDATA >, N) NXDOMAIN_CACHE, TTL')
+    = if TTL >= TTL'
+        then nxdomainEntry(NAME, < NAME', soa, TTL, RDATA >, N) filterNxdomainCacheTTLGreaterEqual(NXDOMAIN_CACHE, TTL')
+        else filterNxdomainCacheTTLGreaterEqual(NXDOMAIN_CACHE, TTL')
+      fi .
+  eq filterNxdomainCacheTTLGreaterEqual(nilNxdomainCache, TTL') = nilNxdomainCache .
+
+  --- Filter the NXDOMAIN cache for entries with TTL > the given value
+  --- Args: NXDOMAIN cache, TTL
+  op filterNxdomainCacheTTLGreaterThan : NxdomainCache Float -> NxdomainCache .
+  eq filterNxdomainCacheTTLGreaterThan(nxdomainEntry(NAME, < NAME', soa, TTL, RDATA >, N) NXDOMAIN_CACHE, TTL')
+    = if TTL > TTL'
+        then nxdomainEntry(NAME, < NAME', soa, TTL, RDATA >, N) filterNxdomainCacheTTLGreaterThan(NXDOMAIN_CACHE, TTL')
+        else filterNxdomainCacheTTLGreaterThan(NXDOMAIN_CACHE, TTL')
+      fi .
+  eq filterNxdomainCacheTTLGreaterThan(nilNxdomainCache, TTL') = nilNxdomainCache .
+
+  ----------------------
+  --- [CACHE LOOKUP] ---
+  ----------------------
+
+  --- Returns all records matching the given owner name and record type in the list of records.
+  --- Args: name, record type, records
+  op lookupRecords : Name RType List{Record} -> List{Record} .
+  eq lookupRecords(NAME, RTYPE, < NAME', RTYPE', TTL, RDATA > RS)
+    = if NAME' == NAME and match(RTYPE', RTYPE)
+        then < NAME', RTYPE', TTL, RDATA > lookupRecords(NAME, RTYPE, RS)
+        else lookupRecords(NAME, RTYPE, RS)
+      fi .
+  eq lookupRecords(NAME, RTYPE, nil) = nil .
+
+  --- Look up a name/type pair in the NODATA cache, considering credibility.
+  ---   If there is a matching cache entry, the associated SOA record is returned, and nil otherwise.
+  --- Args: QNAME, QTYPE, NODATA cache, min credibility level
+  --- CLEANUP: instead of returning a list, a Maybe type would be better.
+  op lookupNodataCache : Name RType NodataCache Nat -> List{Record} .
+  eq lookupNodataCache(NAME, RTYPE, nodataEntry(NAME', RTYPE', R, N') NODATA_CACHE, N)
+    = if NAME' == NAME and match(RTYPE', RTYPE) and N' >= N
+        then R
+        else lookupNodataCache(NAME, RTYPE, NODATA_CACHE, N)
+      fi .
+  eq lookupNodataCache(NAME, RTYPE, nilNodataCache, N) = nil .
+
+  --- Look for an exact match of a name in the NXDOMAIN cache, considering credibility.
+  ---   Note that for a complete lookup, names above the given name also need to be checked, starting from the root.
+  --- Args: QNAME, NXDOMAIN cache, min credibility level
+  --- CLEANUP: instead of returning a list, a Maybe type would be better.
+  op lookupNxdomainCacheExact : Name NxdomainCache Nat -> List{Record} .
+  eq lookupNxdomainCacheExact(NAME, nxdomainEntry(NAME', R, N') NXDOMAIN_CACHE, N)
+    = if NAME' == NAME and N' >= N
+        then R
+        else lookupNxdomainCacheExact(NAME, NXDOMAIN_CACHE, N)
+      fi .
+  eq lookupNxdomainCacheExact(NAME, nilNxdomainCache, N) = nil .
+
+  --- Look up a name in the NXDOMAIN cache, considering credibility.
+  ---   This looks for NXDOMAIN entries for all ancestor names (and the given name itself).
+  --- Args: QNAME, NXDOMAIN cache, min credibility level
+  --- CLEANUP: instead of returning a list, a Maybe type would be better.
+  op lookupNxdomainCache : Name NxdomainCache Nat -> List{Record} .
+  eq lookupNxdomainCache(NAME, NXDOMAIN_CACHE, N) = $lookupNxdomainCache(NAME, root, NXDOMAIN_CACHE, N) .
+
+  --- Args: QNAME, current name, NXDOMAIN cache, min credibility level
+  op $lookupNxdomainCache : Name Name NxdomainCache Nat -> List{Record} .
+  eq $lookupNxdomainCache(NAME, NAME, NXDOMAIN_CACHE, N)
+    = lookupNxdomainCacheExact(NAME, NXDOMAIN_CACHE, N) .
+  ceq $lookupNxdomainCache(NAME, NAME', NXDOMAIN_CACHE, N)
+    = if lookupNxdomainCacheExact(NAME', NXDOMAIN_CACHE, N) =/= nil
+        then lookupNxdomainCacheExact(NAME', NXDOMAIN_CACHE, N)
+        else $lookupNxdomainCache(NAME, oneLabelDown(NAME, NAME'), NXDOMAIN_CACHE, N)
+      fi
+    if NAME'' . NAME' := NAME .
+  eq $lookupNxdomainCache(NAME, NAME', NXDOMAIN_CACHE, N) = nil [owise] .
+
+  --- Unified lookup in positive and negative cache. Returns a response with the appropriate RCODE if there is a hit
+  ---   in any of the caches, or RCODE=4000 otherwise.
+  --- Notes:
+  ---  * First checks the positive cache, then the NXDOMAIN cache, then the NODATA cache. This is an arbitrary choice
+  ---    and only matters during transient inconsistencies.
+  ---  * This function does not follow CNAMEs/DNAMEs. The given name should already be the "best" known canonical name.
+  ---  * If the given name exceeds the max domain length, a SERVFAIL response is returned.
+  ---  * If the partial Answer section contains a loop, i.e., if the given name appears as an alias in the partial
+  ---    Answer section, a SERVFAIL response is returned.
+  ---  * RCODE 4000 is reserved for private use in the spec. We (ab-)use it here to signal a cache miss.
+  --- Args: id, QNAME, QTYPE, partial Answer section, pos cache, NXDOMAIN cache, NODATA cache, min credibility level, original QNAME
+  op responseFromCache : Id Name RType List{Record} Cache NxdomainCache NodataCache Nat Name -> Response .
+  --- case 1: domain exceeds max domain length
+  ceq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', nil, nil, nil, 2) --- SERVFAIL
+    if nameLength(NAME) > 255 . --- domain exceeds max length
+  --- case 2: rewrite loop (the name already appears as the owner of a CNAME in the answer section)
+  ceq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', nil, nil, nil, 2) --- SERVFAIL
+    if lookupRecords(NAME, cname, ANS) =/= nil [owise] . --- rewrite loop
+  --- case 3: hit in the positive cache
+  ceq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', removeDuplicates(ANS RS), nil, nil, 0)
+    if RS := lookupRecords(NAME, RTYPE, filterCacheCred(CACHE, N)) /\
+       RS =/= nil [owise] .
+  --- case 4: hit in NXDOMAIN cache (and miss in positive cache)
+  ceq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', removeDuplicates(ANS), R, nil, 3)
+    if nil := lookupRecords(NAME, RTYPE, filterCacheCred(CACHE, N)) /\
+       R := lookupNxdomainCache(NAME, NXDOMAIN_CACHE, N) [owise] .
+  --- case 5: hit in NODATA cache (and misses in positive and NXDOMAIN cache)
+  ceq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', removeDuplicates(ANS), R, nil, 0)
+    if nil := lookupRecords(NAME, RTYPE, filterCacheCred(CACHE, N)) /\
+       nil := lookupNxdomainCache(NAME, NXDOMAIN_CACHE, N) /\
+       R := lookupNodataCache(NAME, RTYPE, NODATA_CACHE, N) [owise] .
+  --- case 6: misses in all caches
+  eq responseFromCache(ID, NAME, RTYPE, ANS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N, NAME')
+    = response(ID, NAME', nil, nil, nil, cacheMissRcode) [owise] . --- we use a special RCODE to indicate a cache miss
+
+  --- Searches for an applicable DNAME record, starting from the root.
+  ---   Returns the first such DNAME record (i.e., highest in name hierarchy), or nil if there is none.
+  --- Args: name, cache
+  op findApplicableDName : Name List{Record} -> List{Record} .
+  eq findApplicableDName(NAME, RS) = $findApplicableDName(NAME, root, RS) .
+
+  --- Args: original name, current name, cache
+  op $findApplicableDName : Name Name List{Record} -> List{Record} .
+  ceq $findApplicableDName(NAME, NAME', RS)
+    = if RS' =/= nil
+        then RS'
+        else $findApplicableDName(NAME, oneLabelDown(NAME, NAME'), RS)
+      fi
+    if NAME'' . NAME' := NAME /\
+       RS' := lookupRecords(NAME', dname, RS) .
+  eq $findApplicableDName(NAME, NAME', RS) = nil [owise] .
+
+  --- Find "best" canonical name, where "best" means that we follow CNAMEs/DNAMEs as far as possible.
+  --- Notes:
+  ---  * In case of a CNAME/DNAME loop, the first name that would start a second "iteration" through the loop is
+  ---    returned.
+  ---  * In case a name exceeds the max domain length, the first such name is returned.
+  --- Args: name, cache
+  op findBestCanonicalName : Name List{Record} -> Name .
+  eq findBestCanonicalName(NAME, RS) = $findBestCanonicalName(NAME, RS, nil) .
+
+  --- Args: name, cache, CNAMEs/DNAMEs already encountered
+  op $findBestCanonicalName : Name List{Record} List{Record} -> Name .
+  --- case 1: name exceeds max domain length
+  ceq $findBestCanonicalName(NAME, RS, RS') = NAME
+    if nameLength(NAME) > 255 .
+  --- case 2: applicable DNAME
+  ceq $findBestCanonicalName(NAME, RS, RS')
+    = if lookupRecords(NAME', cname, RS') =/= nil
+        --- if NAME' is the owner of an encountered CNAME, then there is a rewrite loop
+        then NAME'
+        else $findBestCanonicalName(NAME', RS, RS' R < NAME, cname, TTL, NAME' >)
+      fi
+    if R := findApplicableDName(NAME, RS) /\
+       < NAME, cname, TTL, NAME' > := dnameSynthesis(NAME, R) [owise] .
+  --- case 3: no applicable DNAME, but a CNAME
+  ceq $findBestCanonicalName(NAME, RS, RS')
+    = if lookupRecords(NAME', cname, RS') =/= nil
+        --- if NAME' is the owner of an encountered CNAME, then there is a rewrite loop
+        then NAME'
+        else $findBestCanonicalName(NAME', RS, RS' < NAME, cname, TTL, NAME' >)
+      fi
+    if nil == findApplicableDName(NAME, RS) /\
+       < NAME, cname, TTL, NAME' > := lookupRecords(NAME, cname, RS) [owise] .
+  --- case 4: none of the above
+  eq $findBestCanonicalName(NAME, RS, RS') = NAME [owise] .
+
+  --- Return the CNAMEs/DNAMEs that need to be followed to find the "best" canonical name, where "best" means that we
+  ---   follow CNAMEs/DNAMEs as far as possible.
+  --- Notes:
+  ---  * In case of a CNAME/DNAME loop, the loop is returned once, i.e., no record is returned twice.
+  ---  * The result may contain duplicate DNAME records. To obtain an answer chain that can be returned to a client,
+  ---    only the first occurrence of each DNAME should be retained (cf. removeDuplicates).
+  --- Args: name, cache, CNAMEs/DNAMEs already encountered
+  op findAnsChain : Name List{Record} List{Record} -> List{Record} .
+  --- case 1: name exceeds max domain length
+  ceq findAnsChain(NAME, RS, RS') = nil
+    if nameLength(NAME) > 255 .
+  --- case 2: applicable DNAME, substitution is fine
+  ceq findAnsChain(NAME, RS, RS')
+    = if lookupRecords(NAME', cname, RS') =/= nil
+        --- if NAME' is the owner of an encountered CNAME, then there is a rewrite loop
+        then ANS_CHAIN
+        else findAnsChain(NAME', RS, ANS_CHAIN)
+      fi
+    if R := findApplicableDName(NAME, RS) /\
+       < NAME, cname, TTL, NAME' > := dnameSynthesis(NAME, R) /\
+       nameLength(NAME') <= 255 /\
+       ANS_CHAIN := RS' R < NAME, cname, TTL, NAME' > [owise] .
+  --- case 3: applicable DNAME, but substitution exceeds max domain length
+  ceq findAnsChain(NAME, RS, RS')
+    = RS' R --- only add the DNAME to the Answer chain, but not the synthesized CNAME
+    if R := findApplicableDName(NAME, RS) /\
+       < NAME, cname, TTL, NAME' > := dnameSynthesis(NAME, R) /\
+       nameLength(NAME') > 255 [owise] . --- max domain length exceeded
+  --- case 4: no applicable DNAME, but a CNAME
+  ceq findAnsChain(NAME, RS, RS')
+    = if lookupRecords(NAME', cname, RS') =/= nil
+        --- if NAME' is the owner of an encountered CNAME, then there is a rewrite loop
+        then ANS_CHAIN
+        else findAnsChain(NAME', RS, ANS_CHAIN)
+      fi
+    if nil == findApplicableDName(NAME, RS) /\
+       < NAME, cname, TTL, NAME' > := lookupRecords(NAME, cname, RS) /\
+       ANS_CHAIN := RS' < NAME, cname, TTL, NAME' > [owise] .
+  --- case 5: none of the above
+  eq findAnsChain(NAME, RS, RS') = RS' [owise] .
+
+  --- Initializes the SNAME by following known CNAMEs/DNAMEs in the cache (unless the QTYPE matches CNAME).
+  --- Notes:
+  ---  * This is essentially a wrapper for $findBestCanonicalName, except that CNAMEs/DNAMEs are not followed when the
+  ---    QTYPE matches CNAME. In this case, the original name is returned.
+  ---  * In case of a CNAME/DNAME loop, the first name that would start a second "iteration" through the loop is
+  ---    returned.
+  ---  * For loop detection to work, the existing answer chain (if any) must be provided in the last argument.
+  --- Args: QNAME, QTYPE, cache, existing answer chain
+  op initSNAME : Name RType List{Record} List{Record} -> Name .
+  eq initSNAME(NAME, QTYPE, RS, RS')
+    = if match(cname, QTYPE)
+        then NAME
+        else $findBestCanonicalName(NAME, RS, RS')
+      fi .
+
+  --- Initializes the answer chain by following known CNAMEs/DNAMEs in the cache.
+  --- Notes:
+  ---  * If the QTYPE matches CNAME, the answer chain is empty, unless the QNAME is below a DNAME. In this case, we
+  ---    return the DNAME. This allows to simply add the synthesized CNAME in the cache lookup to get the complete
+  ---    answer.
+  ---  * Other than that, this function is just a wrapper for findAnsChain.
+  --- Args: QNAME, QTYPE, cache, existing answer chain
+  op initAnsChain : Name RType List{Record} List{Record} -> List{Record} .
+  ceq initAnsChain(NAME, QTYPE, RS, RS')
+    = if match(cname, QTYPE)
+        then if rtype(head(ANS)) == dname then head(ANS) else nil fi
+        else ANS
+      fi
+    if ANS := findAnsChain(NAME, RS, RS') .
+
+  ----------------------------
+  --- [QNAME MINIMIZATION] ---
+  ----------------------------
+
+  --- QNAME minimization [RFC 9156, §3, step (3)-(5)]
+  ---   Initialize the current SNAME (= CHILD in RFC 9156 terminology)
+  ---   Note: Step (5) in the RFC appears to be wrong. Here, we implement a different version that only looks at the
+  ---   NODATA cache (but for any QTYPE) to learn information on zone cuts.
+  --- TODO: check if the interaction with circular dependency detection is correct
+  --- TODO: what data credibility requirements should apply for the cache lookup?
+  --- Args: current CHILD, current QMinState, NODATA cache, ANCESTOR (= zone from SLIST)
+  op initQMinSNAME : Name QMinState NodataCache Name -> Name .
+  eq initQMinSNAME(NAME, qminState(NAME, N, N', false), NODATA_CACHE, ANCESTOR) = NAME .
+  eq initQMinSNAME(NAME, qminState(NAME', 0, N', B), NODATA_CACHE, ANCESTOR) = NAME' [owise] .
+  ceq initQMinSNAME(NAME, qminState(NAME', s N, N', false), NODATA_CACHE, ANCESTOR)
+    = if ownerName(lookupNodataCache(NAME'', anyType, NODATA_CACHE, 1)) == ANCESTOR
+        --- the associated SOA record is from the ANCESTOR zone, i.e., there is no zone cut between CHILD and ANCESTOR;
+        --- thus, go back to step (3)
+        then initQMinSNAME(NAME'', qminState(NAME', N, if N' == 0 then 0 else N' + (- 1) fi, false), NODATA_CACHE, ANCESTOR) 
+        else NAME''
+      fi
+    if NAME'' := qminAddLabels(NAME, qminState(NAME', s N, N', false)) [owise] .
+
+  --- QNAME minimization [RFC 9156, §3, step (3)-(5)]
+  ---   Initialize the current QMinState. The same as the function above, but returns the updated QMinState instead
+  ---   of the SNAME.
+  ---   Note: Step (5) in the RFC appears to be wrong. Here, we implement a different version that only looks at the
+  ---   NODATA cache (but for any QTYPE) to learn information on zone cuts.
+  --- TODO: check if the interaction with circular dependency detection is correct
+  --- TODO: what data credibility requirements should apply for the cache lookup?
+  --- Args: current CHILD, current QMinState, NODATA cache, ANCESTOR (= zone from SLIST)
+  op initQMinState : Name QMinState NodataCache Name -> QMinState .
+  eq initQMinState(NAME, qminState(NAME, N, N', false), NODATA_CACHE, ANCESTOR)
+    = qminState(NAME, N, N', true) . --- set done flag
+  eq initQMinState(NAME, qminState(NAME', 0, N', B), NODATA_CACHE, ANCESTOR)
+    = qminState(NAME', 0, N', true) [owise] . --- set done flag
+  ceq initQMinState(NAME, qminState(NAME', s N, N', false), NODATA_CACHE, ANCESTOR)
+    = if ownerName(lookupNodataCache(NAME'', anyType, NODATA_CACHE, 1)) == ANCESTOR
+        --- the associated SOA record is from the ANCESTOR zone, i.e., there is no zone cut between CHILD and ANCESTOR;
+        --- thus, go back to step (3)
+        then initQMinState(NAME'', qminState(NAME', N, if N' == 0 then 0 else N' + (- 1) fi, false), NODATA_CACHE, ANCESTOR)
+        else qminState(NAME', N, if N' == 0 then 0 else N' + (- 1) fi, false)
+      fi
+    if NAME'' := qminAddLabels(NAME, qminState(NAME', s N, N', false)) [owise] .
+
+  --- QNAME minimization [RFC 9156, §3, step (4)]
+  ---   Adds the next relevant label or labels to the given name, where the number of labels is determined according
+  ---   to RFC 9156, §2.3 and the MAX_MINIMISE_COUNT and MINIMISE_ONE_LAB parameters.
+  ---   Note that the function is not defined or may return wrong results for illegal arguments.
+  --- Args: current SNAME (= CHILD in RFC 9156 terminology), qmin state
+  op qminAddLabels : Name QMinState -> [Name] .
+  eq qminAddLabels(NAME, qminState(NAME', s N, s N', B)) --- still in the "one-label-steps" phase
+    = oneLabelDown(NAME', NAME) .
+  ceq qminAddLabels(NAME, qminState(NAME', s N, 0, B)) --- in the "multiple-label-steps" phase
+    = nLabelsDown(NAME', NAME, N')
+    if N' := max(1, floor((numLabels(NAME') + (- numLabels(NAME))) / (s N))) .
+
+  ------------------------------
+  --- [SLIST INITIALIZATION] ---
+  ------------------------------
+
+  --- Finds the best NS records for a given (query) name in the cache, or nil if no such NS records are found.
+  ---   Note that this does not follow CNAMEs/DNAMEs. The given name should already be the best canonical name.
+  --- Args: name, cache
+  op findBestLocalNS : Name List{Record} -> List{Record} .
+  ceq findBestLocalNS(NAME, RS)
+    = if RS' =/= nil
+        then RS'
+        else if parentDomain(NAME) == root
+          then lookupRecords(root, ns, RS) --- stop the recursion
+          else findBestLocalNS(parentDomain(NAME), RS)
+        fi
+      fi
+    if RS' := lookupRecords(NAME, ns, RS) .
+
+  --- Returns whether the given name occurs in the name list.
+  --- Args: name, name list
+  op occursNL : Name NameList -> Bool .
+  eq occursNL(NAME, NAME' NL)
+    = if NAME == NAME'
+        then true
+        else occursNL(NAME, NL)
+      fi .
+  eq occursNL(NAME, nilNL) = false .
+
+  --- Returns whether the given name is part of a circular NS dependency
+  ---   Note that this only returns true if the name (first argument) itself appears as a name server name in a SLIST,
+  ---   e.g., if we we use this function with name www.example.com it will return false even if there is a circular
+  ---   dependency for the example.com name server.
+  --- Args: name, cache, NXDOMAIN cache, NODATA cache
+  op circDepNS : Name Cache NxdomainCache NodataCache -> Bool .
+  ceq circDepNS(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    = $circDepNS(NAME, NAME, NA, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    if RS := cacheToList(CACHE) /\
+       NAME' := findBestCanonicalName(NAME, RS) /\
+       RS' := findBestLocalNS(NAME', RS) /\
+       NA := createSLISTMap(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE) .
+  eq circDepNS(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) = false [owise] . --- no NS records found
+
+  --- Args: original name, name server names to resolve, SLIST map, cache, NXDOMAIN cache, NODATA cache
+  op $circDepNS : Name NameList Map{Name, Address} Cache NxdomainCache NodataCache -> Bool .
+  ceq $circDepNS(NAME', NL, (NAME |-> nullAddr, NA), CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    = if occursNL(NAME, NL)
+        then if NAME == NAME'
+          then true
+          else $circDepNS(NAME', NL, NA, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+        fi
+        else $circDepNS(NAME', NAME NL, NA, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) or --- TODO: should NAME really be added to the name list here?
+               $circDepNS(NAME', NAME NL, NA', CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+      fi
+    if RS := cacheToList(CACHE) /\
+       NAME'' := findBestCanonicalName(NAME, RS) /\
+       RS' := findBestLocalNS(NAME'', RS) /\
+       NA' := createSLISTMap(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE) .
+  eq $circDepNS(NAME', NL, (NAME |-> ADDR, NA), CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    = $circDepNS(NAME', NL, NA, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) [owise] . --- ADDR =/= nullAddr
+  eq $circDepNS(NAME', NL, empty, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) = false .
+
+  --- Returns the first address found in cache for the given name, or nullAddr if no address is found.
+  ---   Note that CNAMEs/DNAMEs are not followed.
+  --- Args: name, cache
+  op addrOrNull : Name List{Record} -> Address .
+  ceq addrOrNull(NAME, RS) = ADDR
+    if < NAME, a, TTL, ADDR > RS' := lookupRecords(NAME, a, RS) .
+  eq addrOrNull(NAME, RS) = nullAddr [owise] .
+
+  --- Creates a map from name server names to their addresses, based on a list of NS records and the cache.
+  --- Notes:
+  ---  * The list of NS records is used to retrieve the NS names, whereas the cache is used to retrieve their canonical
+  ---    names and addresses.
+  ---  * If there is a hit in the negative cache, the name server is not added to the map.
+  --- Args: NS records of interest, cache, NXDOMAIN cache, NODATA cache
+  op createSLISTMap : List{Record} Cache NxdomainCache NodataCache -> Map{Name, Address} .
+  ceq createSLISTMap(< NAME, ns, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    = if ADDR =/= nullAddr
+        then (NAME' |-> ADDR, createSLISTMap(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE))
+        else if lookupNxdomainCache(NAME'', NXDOMAIN_CACHE, 1) =/= nil or
+                  lookupNodataCache(NAME'', a, NODATA_CACHE, 1) =/= nil
+               then createSLISTMap(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+               else (NAME' |-> nullAddr, createSLISTMap(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE))
+             fi
+      fi
+    if RS' := cacheToList(CACHE) /\
+       NAME'' := findBestCanonicalName(NAME', RS') /\
+       ADDR := addrOrNull(NAME'', RS') .
+  eq createSLISTMap(< NAME, RTYPE, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+    = createSLISTMap(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) [owise] . --- if for some reason non-NS records are in the list, ignore them
+  eq createSLISTMap(nil, CACHE, NXDOMAIN_CACHE, NODATA_CACHE) = empty .
+
+  --- Same as above, but the resulting map contains at most the given number of entries with unknown addresses.
+  ---   This is used in the MaxFetch(k) mitigation for the NXNS attack.
+  --- Args: NS records of interest, cache, NXDOMAIN cache, NODATA cache, max number of entries with unknown addresses
+  op createSLISTMapMax : List{Record} Cache NxdomainCache NodataCache Nat -> Map{Name, Address} .
+  --- case 1: address is known
+  ceq createSLISTMapMax(< NAME, ns, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N)
+    = (NAME' |-> ADDR, createSLISTMapMax(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N))
+    if RS' := cacheToList(CACHE) /\
+       NAME'' := findBestCanonicalName(NAME', RS') /\
+       ADDR := addrOrNull(NAME'', RS') /\
+       ADDR =/= nullAddr .
+  --- case 2: address is unknown (and no hit in negative cache)
+  ceq createSLISTMapMax(< NAME, ns, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, s N)
+    = (NAME' |-> nullAddr, createSLISTMapMax(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N))
+    if RS' := cacheToList(CACHE) /\
+       NAME'' := findBestCanonicalName(NAME', RS') /\
+       addrOrNull(NAME'', RS') == nullAddr /\
+       lookupNxdomainCache(NAME'', NXDOMAIN_CACHE, 1) == nil /\
+       lookupNodataCache(NAME'', a, NODATA_CACHE, 1) == nil .
+  --- case 3: address does not exist (hit in negative cache)
+  ceq createSLISTMapMax(< NAME, ns, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N)
+    = createSLISTMapMax(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N)
+    if RS' := cacheToList(CACHE) /\
+       NAME'' := findBestCanonicalName(NAME', RS') /\
+       addrOrNull(NAME'', RS') == nullAddr [owise] .
+  --- case 4 (error): list of NS records contains non-NS records
+  eq createSLISTMapMax(< NAME, RTYPE, TTL, NAME' > RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N)
+    = createSLISTMapMax(RS, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N) [owise] .
+  --- case 5: done
+  eq createSLISTMapMax(nil, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, N) = empty .
+
+  --- Returns whether the given name is present as a key in the map.
+  op nameIsInMap : Name Map{Name, Address} -> Bool .
+  eq nameIsInMap(NAME, NA) = NA[NAME] =/= undefined .
+
+  --- Initializes SLIST for the given QNAME:
+  ---   Identifies the best known name servers and tries to look up their addresses in the cache.
+  --- Notes:
+  ---  * CNAMEs are followed when trying to fill in addresses.
+  ---    The specification forbids NS records pointing to an alias, but at the same time mandates fault tolerance.
+  ---  * If there is at least one known name server, then SLIST will be initialized with this Name->Address map.
+  ---    Otherwise, SBELT is used to initialize SLIST.
+  ---  * Circular dependency detection:
+  ---     - If there is a "trivial" circular dependency, i.e., the (original) name for which SLIST is initialized appears
+  ---       itself as a nameserver in the SLIST, and the SLIST does not contain any known addresses, then SLIST is
+  ---       initialized for the parent domain of the zone.
+  ---     - If there is any other kind of circular dependency, e.g., a circular dependency involving at least two zones,
+  ---       or a "trivial" circular dependency but some other name server's address is known, then SLIST is initialized
+  ---       for the parent domain if configTsuNAMEslistCircDep == true, or SBELT, otherwise.
+  --- Args: QNAME, cache, NXDOMAIN cache, NODATA cache, SBELT, original name
+  op initSLIST : Name Cache NxdomainCache NodataCache ZoneState Name -> ZoneState .
+  ceq initSLIST(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, NAME'')
+    = if (not(hasKnownAddress(NA)) and nameIsInMap(NAME'', NA))
+        --- trivial circular dependency, re-initialize for parent domain (with special case for root)
+        then if NAME' == root
+            then ZS
+            else initSLIST(parentDomain(NAME'), CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, parentDomain(NAME'))
+          fi
+        else if circDepNS(NAME'', CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+            --- other circular dependency
+            then if configTsuNAMEslistCircDep
+                --- re-initialize for parent domain (with special case for root) or use SBELT
+                then if NAME' == root
+                    then ZS
+                    else initSLIST(parentDomain(NAME'), CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, parentDomain(NAME'))
+                  fi
+                else ZS
+              fi
+            --- no circular dependency
+            else < NAME' NA >
+          fi
+      fi
+    if RS := cacheToList(CACHE) /\ --- note that we consider data of any credibility
+       RS' := findBestLocalNS(NAME, RS) /\
+       NAME' := ownerName(head(RS')) /\ --- all NS records have the same NAME, so let's just use the first one
+       --- initialize SLIST map depending on whether MaxFetch(k) mitigation is enabled
+       NA := if maxFetch?
+               then createSLISTMapMax(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE, maxFetchParam)
+               else createSLISTMap(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+             fi /\
+       NA =/= empty .
+  eq initSLIST(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, NAME'') = ZS [owise] .
+
+  -----------------------------
+  --- [RESOLVER SUBQUERIES] ---
+  -----------------------------
+
+  --- Returns the names from the SLIST whose addresses are unknown.
+  op nsToResolve : ZoneState -> NameList .
+  eq nsToResolve(< NAME' (NAME |-> nullAddr, NA) >) = NAME nsToResolve(< NAME' NA >) .
+  eq nsToResolve(< NAME' (NAME |-> ADDR, NA) >) = nsToResolve(< NAME' NA >) [owise] .
+  eq nsToResolve(< NAME' empty >) = nilNL .
+
+  --- Returns a QueryStateSet consisting of the subqueries to resolve all unknown addresses in the given SLIST.
+  --- Args: SLIST, id of query, resolver address, cache, NXDOMAIN cache, NODATA cache, SBELT
+  op getNsQueries : ZoneState Id Address Cache NxdomainCache NodataCache ZoneState -> QueryStateSet .
+  eq getNsQueries(ZS, ID, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS')
+    = $getNsQueries(nsToResolve(ZS), ID, 1, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS') .
+
+  --- Same as above, but directly takes the names to be resolved as first argument instead of the SLIST
+  ---   Additionally takes a Nat, which is a subquery counter for the current query
+  --- Args: names to resolve, id of query, subquery counter, cache, NXDOMAIN cache, NODATA cache, SBELT
+  op $getNsQueries : NameList Id Nat Address Cache NxdomainCache NodataCache ZoneState -> QueryStateSet .
+  ceq $getNsQueries(NAME NL, ID, N, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS')
+    = QSTATE ;; $getNsQueries(NL, ID, N + 1, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS')
+    if SNAME_FULL := initSNAME(NAME, a, filterCacheCred(CACHE, rsvMinCacheCredResolver), nil) /\
+       ANS_CHAIN := initAnsChain(NAME, a, filterCacheCred(CACHE, rsvMinCacheCredResolver), nil) /\
+       < NAME' NA > := initSLIST(SNAME_FULL, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS', NAME) /\
+       QSTATE := queryState(query(ID .. N, NAME, a), ADDR,
+                  initQMinSNAME(NAME', qminState(SNAME_FULL, maxMinimiseCount, minimiseOneLab, false), NODATA_CACHE, NAME'),
+                  ID .. N,
+                  initQMinState(NAME', qminState(SNAME_FULL, maxMinimiseCount, minimiseOneLab, false), NODATA_CACHE, NAME'),
+                  ANS_CHAIN, < NAME' NA >) .
+  eq $getNsQueries(nilNL, ID, N, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS') = eptQSS .
+
+  --- Recursively adds the resolver subqueries for a given (new) query.
+  ---   The resulting QueryStateSet consists of the new query itself and all sub-queries that are necessary to resolve
+  ---   the unknown addresses of name servers.
+  --- Args: new query, resolver address, cache, NXDOMAIN cache, NODATA cache, SBELT
+  op addResolverSubqueries : QueryStateSet Address Cache NxdomainCache NodataCache ZoneState -> QueryStateSet .
+  ceq addResolverSubqueries(QSTATE ;; QSS, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, SBELT)
+    = QSTATE ;; addResolverSubqueries((QSS ;; QSS'), ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, SBELT)
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', QMIN, ANS, SLIST) := QSTATE /\
+       QSS' := getNsQueries(SLIST, ID', ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, SBELT) .
+  eq addResolverSubqueries(eptQSS, ADDR, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, SBELT) = eptQSS .
+
+  ------------------------------------
+  --- [QUERYSTATESET MANIPULATION] ---
+  ------------------------------------
+
+  --- Returns whether a query with the given id is in the given QueryStateSet.
+  --- Args: id, QueryStateSet
+  op idInQSS : Id QueryStateSet -> Bool .
+  eq idInQSS(ID, (queryState(Q, ADDR, NAME, ID, QMIN, RS, SLIST) ;; QSS)) = true .
+  eq idInQSS(ID, QSS) = false [owise] .
+
+  --- Returns whether the query with the given ORIGINAL id is in the given QueryStateSet.
+  --- Args: id, QueryStateSet
+  op idInQSSOriginal : Id QueryStateSet -> Bool .
+  eq idInQSSOriginal(ID, (queryState(query(ID, QNAME, QTYPE), ADDR, NAME, ID', QMIN, RS, SLIST) ;; QSS)) = true .
+  eq idInQSSOriginal(ID, QSS) = false [owise] .
+
+  --- Split a QueryStateSet into two, depending on whether the id is part of the other given QueryStateSet or not.
+  ---   For determining into which QueryStateSet a QueryState should go, only the id is checked; all other components
+  ---   are irrelevant.
+  --- Args: queries to split, queries used as criterion
+  op splitQSSInQSS : QueryStateSet QueryStateSet -> PairQueryStateSet .
+  eq splitQSSInQSS(QSS, QSS') = $splitQSSInQSS(QSS, QSS', eptQSS, eptQSS) .
+
+  --- Args: queries to split, queries used as criterion, current QSS 1, current QSS 2
+  op $splitQSSInQSS : QueryStateSet QueryStateSet QueryStateSet QueryStateSet -> PairQueryStateSet .
+  ceq $splitQSSInQSS(QSTATE ;; QSS, QSS_ORIG', QSS', QSS'')
+    = if idInQSS(ID, QSS_ORIG')
+        then $splitQSSInQSS(QSS, QSS_ORIG', QSTATE ;; QSS', QSS'')
+        else $splitQSSInQSS(QSS, QSS_ORIG', QSS', QSTATE ;; QSS'')
+      fi
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, < NAME' NA >) := QSTATE .
+  eq $splitQSSInQSS(eptQSS, QSS_ORIG', QSS', QSS'') = pairQSS(QSS', QSS'') .
+
+  --- Returns whether there is at least one name with known address in the map.
+  op hasKnownAddress : Map{Name, Address} -> Bool .
+  ceq hasKnownAddress((NAME |-> ADDR, NA))
+    = true
+    if ADDR =/= nullAddr .
+  eq hasKnownAddress(NA) = false [owise] .
+
+  --- Splits the given QueryStateSet into two QueryStateSets depending on whether they have at least one known name
+  ---   server address.
+  ---   The queries with at least one known address are returned in the first position, those with only unknown addresses
+  ---   in the second.
+  op splitQSSKnownAddr : QueryStateSet -> PairQueryStateSet .
+  eq splitQSSKnownAddr(QSS) = $splitQSSKnownAddr(QSS, eptQSS, eptQSS) .
+
+  --- Args: queries still to split, queries with known address, queries with unknown address
+  op $splitQSSKnownAddr : QueryStateSet QueryStateSet QueryStateSet -> PairQueryStateSet .
+  ceq $splitQSSKnownAddr((QSTATE ;; QSS), QSS', QSS'')
+    = if hasKnownAddress(NA)
+        then $splitQSSKnownAddr(QSS, (QSS' ;; QSTATE), QSS'')
+        else $splitQSSKnownAddr(QSS, QSS', (QSS'' ;; QSTATE))
+      fi
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, < NAME' NA >) := QSTATE .
+  eq $splitQSSKnownAddr(eptQSS, QSS', QSS'') = pairQSS(QSS', QSS'') .
+
+  --- Splits the given QueryStateSet into two QueryStateSets depending on whether they have an empty SLIST, i.e., no
+  ---   known name server.
+  ---   The queries with empty SLIST are returned in the first position, those with non-empty SLIST in the second.
+  op splitQSSEmpty : QueryStateSet -> PairQueryStateSet .
+  eq splitQSSEmpty(QSS) = $splitQSSEmpty(QSS, eptQSS, eptQSS) .
+
+  --- Args: queries still to split, queries with empty SLIST, queries with non-empty SLIST
+  op $splitQSSEmpty : QueryStateSet QueryStateSet QueryStateSet -> PairQueryStateSet .
+  ceq $splitQSSEmpty((QSTATE ;; QSS), QSS', QSS'')
+    = if NA == empty
+        then $splitQSSEmpty(QSS, (QSS' ;; QSTATE), QSS'')
+        else $splitQSSEmpty(QSS, QSS', (QSS'' ;; QSTATE))
+      fi
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, < NAME' NA >) := QSTATE .
+  eq $splitQSSEmpty(eptQSS, QSS', QSS'') = pairQSS(QSS', QSS'') .
+
+  --- Splits the given QueryStateSet into two, depending on the remaining work budget for these queries.
+  ---   The work budget is updated and returned as well.
+  --- Returns: Tuple with three components: The queries that can be sent out, the queries that need to be aborted
+  ---   because the work budget was exceeded, and the resulting work budget.
+  --- Args: queries, work budget map
+  op splitQSSWorkBudget : QueryStateSet IdNatMap -> TupleQSSQSSIdNatMap .
+  eq splitQSSWorkBudget(QSS, IN) = $splitQSSWorkBudget(QSS, eptQSS, eptQSS, IN) .
+
+  --- Args: queries still to split, queries to be sent, queries to be aborted, current work budget
+  op $splitQSSWorkBudget : QueryStateSet QueryStateSet QueryStateSet IdNatMap -> TupleQSSQSSIdNatMap .
+  ceq $splitQSSWorkBudget((QSTATE ;; QSS), QSS', QSS'', (idNatEntry(ID', s N), IN)) --- non-zero work budget
+    = $splitQSSWorkBudget(QSS, (QSS' ;; QSTATE), QSS'', (if N == 0 then IN else (idNatEntry(ID', N), IN) fi))
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, SLIST) := QSTATE /\
+       ID' := getClientId(ID) .
+  eq $splitQSSWorkBudget((QSTATE ;; QSS), QSS', QSS'', IN)
+    = $splitQSSWorkBudget(QSS, QSS', (QSS'' ;; QSTATE), IN) [owise] . --- zero work budget
+  eq $splitQSSWorkBudget(eptQSS, QSS', QSS'', IN) = tupleQSSQSSIdNatMap(QSS', QSS'', IN) .
+
+  --- Remove all entries with the given id from the IdNatMap.
+  --- Args: id, work budget map
+  op removeFromIdNatMap : Id IdNatMap -> IdNatMap .
+  eq removeFromIdNatMap(ID, (idNatEntry(ID, N), IN)) = removeFromIdNatMap(ID, IN) .
+  eq removeFromIdNatMap(ID, IN) = IN [owise] .
+
+  --- Clean up the work budget by removing all entries for which there are no more queries
+  --- Args: work budget map, all pending queries (= blockedQueries and sentQueries)
+  op cleanUpWorkBudget : IdNatMap QueryStateSet -> IdNatMap .
+  ceq cleanUpWorkBudget((idNatEntry(ID', N), IN), (QSTATE ;; QSS))
+    = (idNatEntry(ID', N), cleanUpWorkBudget(IN, (QSTATE ;; QSS)))
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, SLIST) := QSTATE /\
+       ID' := getClientId(ID) .
+  eq cleanUpWorkBudget((idNatEntry(ID', N), IN), QSS) = cleanUpWorkBudget(IN, QSS) [owise] .
+  eq cleanUpWorkBudget(emptyIN, QSS) = emptyIN .
+
+  --- Returns whether the first id is a prefix of the second id.
+  ---   This can be used to check if a query is a "follow-up" query of another query.
+  --- Args: first id, second id
+  op isIdPrefix : Id Id -> Bool .
+  eq isIdPrefix(ID, ID) = true . --- same id
+  ceq isIdPrefix(ID, ID') = true
+    if ID .. ID'' := ID' .
+  eq isIdPrefix(ID, ID') = false [owise] .
+
+  --- Returns whether the given query has a descendant query in the given QueryStateSet.
+  --- Args: query, QueryStateSet
+  op hasFollowUpQueryInQSS : QueryState QueryStateSet -> Bool .
+  ceq hasFollowUpQueryInQSS(QSTATE, (QSTATE' ;; QSS))
+    = true
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, SLIST) := QSTATE /\
+       queryState(Q', ADDR', NAME', ID', QMIN', ANS', SLIST') := QSTATE' /\
+       isIdPrefix(ID, ID') .
+  eq hasFollowUpQueryInQSS(QSTATE, QSS) = false [owise] .
+
+  --- Returns whether the given QueryStateSet contains a query that is a descendant of the given query id.
+  --- Args: id, QueryStateSet
+  op hasFollowUpQueryInQSSForId : Id QueryStateSet -> Bool .
+  ceq hasFollowUpQueryInQSSForId(ID, (QSTATE ;; QSS))
+    = true
+    if queryState(Q, ADDR, NAME, ID', QMIN, ANS, SLIST) := QSTATE /\
+       isIdPrefix(ID, ID') .
+  eq hasFollowUpQueryInQSSForId(ID, QSS) = false [owise] .
+
+  --- Return the client queries that need to be aborted, given a set of (client or resolver) queries that are aborted.
+  ---   A client query needs to be aborted if it has a follow-up query in the set of aborted queries.
+  --- Args: queries to filter, aborted other queries
+  op filterQSSClientQueriesToAbort : QueryStateSet QueryStateSet -> QueryStateSet .
+  ceq filterQSSClientQueriesToAbort((QSTATE ;; QSS), QSS')
+    = if isClientQuery(QSTATE) and hasFollowUpQueryInQSSForId(ID, QSS')
+        then QSTATE ;; filterQSSClientQueriesToAbort(QSS, QSS')
+        else filterQSSClientQueriesToAbort(QSS, QSS')
+      fi
+    if queryState(query(ID, NAME, RTYPE), ADDR, NAME', ID', QMIN, ANS, SLIST) := QSTATE .
+  eq filterQSSClientQueriesToAbort(eptQSS, QSS') = eptQSS .
+
+  --- Filters the queries that do NOT have an aborted follow-up query OF THE ORIGINAL QUERY in the given QueryStateSet.
+  --- Args: queries to filter, aborted queries
+  op filterQSSNotFollowUpOfOriginalAborted : QueryStateSet QueryStateSet -> QueryStateSet .
+  ceq filterQSSNotFollowUpOfOriginalAborted((QSTATE ;; QSS), QSS')
+    --- TODO: shouldn't this use the client id of ID?
+    = if hasFollowUpQueryInQSSForId(ID, QSS')
+        then filterQSSNotFollowUpOfOriginalAborted(QSS, QSS')
+        else QSTATE ;; filterQSSNotFollowUpOfOriginalAborted(QSS, QSS')
+      fi
+    if queryState(query(ID, NAME, RTYPE), ADDR, NAME', ID', QMIN, ANS, SLIST) := QSTATE .
+  eq filterQSSNotFollowUpOfOriginalAborted(eptQSS, QSS') = eptQSS .
+
+  --- Return the queries that are NOT follow-up queries of the client query with the given id.
+  --- Args: queries to filter, id
+  op filterQSSNotFollowUpOfId : QueryStateSet Id -> QueryStateSet .
+  ceq filterQSSNotFollowUpOfId((QSTATE ;; QSS), ID)
+    = if ID == getClientId(ID')
+        then filterQSSNotFollowUpOfId(QSS, ID)
+        else QSTATE ;; filterQSSNotFollowUpOfId(QSS, ID)
+      fi
+    if queryState(query(ID'', NAME, RTYPE), ADDR, NAME', ID', QMIN, ANS, SLIST) := QSTATE .
+  eq filterQSSNotFollowUpOfId(eptQSS, ID) = eptQSS .
+
+  ------------------------
+  --- [UPDATING SLIST] ---
+  ------------------------
+
+  --- Reverse lookup in SLIST map, i.e., given an address, find the names that map to that address.
+  --- Args: SLIST map, address
+  op namesForAddressSLIST : Map{Name, Address} Address -> NameList .
+  eq namesForAddressSLIST((NAME |-> ADDR, NA), ADDR')
+    = if ADDR == ADDR'
+        then NAME namesForAddressSLIST(NA, ADDR')
+        else namesForAddressSLIST(NA, ADDR')
+      fi .
+  eq namesForAddressSLIST(empty, ADDR') = nilNL .
+
+  --- Fills in unknown addresses in the SLIST map using some newly obtained data.
+  --- Args: SLIST map, new data
+  op enhanceSLISTMap : Map{Name, Address} List{Record} -> Map{Name, Address} .
+  ceq enhanceSLISTMap((NAME |-> nullAddr, NA), RS)
+    = (NAME |-> addrOrNull(NAME', RS), enhanceSLISTMap(NA, RS))
+    if NAME' := findBestCanonicalName(NAME, RS) .
+  eq enhanceSLISTMap((NAME |-> ADDR, NA), RS)
+    = (NAME |-> ADDR, enhanceSLISTMap(NA, RS)) [owise] .
+  eq enhanceSLISTMap(empty, RS) = empty .
+
+  --- Fills in unknown addresses in the SLISTS of an entire QueryStateSet using some newly obtained data.
+  --- Args: QueryStateSet, new data
+  op enhanceSLISTsOfQSS : QueryStateSet List{Record} -> QueryStateSet .
+  ceq enhanceSLISTsOfQSS((QSTATE ;; QSS), RS)
+    = QSTATE' ;; enhanceSLISTsOfQSS(QSS, RS)
+    if queryState(Q, ADDR, NAME, ID, QMIN, ANS, < NAME' NA >) := QSTATE /\
+       NA' := enhanceSLISTMap(NA, RS) /\
+       QSTATE' := queryState(Q, ADDR, NAME, ID, QMIN, ANS, < NAME' NA' >) .
+  eq enhanceSLISTsOfQSS(eptQSS, RS) = eptQSS .
+
+  --- Removes the given name server from the SLIST map, regardless whether its address is known.
+  --- Args: SLIST map, name server name
+  op removeNameFromSLISTMap : Map{Name, Address} Name -> Map{Name, Address} .
+  eq removeNameFromSLISTMap((NAME |-> ADDR, NA), NAME')
+    = if NAME == NAME'
+        then removeNameFromSLISTMap(NA, NAME')
+        else (NAME |-> ADDR, removeNameFromSLISTMap(NA, NAME'))
+      fi .
+  eq removeNameFromSLISTMap(empty, NAME') = empty .
+
+  --- Removes one or multiple name servers from the SLIST map, regardless whether their addresses are known.
+  --- Args: SLIST map, name server names
+  op removeNamesFromSLISTMap : Map{Name, Address} NameList -> Map{Name, Address} .
+  eq removeNamesFromSLISTMap(NA, (NAME' NL))
+    = removeNamesFromSLISTMap(removeNameFromSLISTMap(NA, NAME'), NL) .
+  eq removeNamesFromSLISTMap(NA, nilNL) = NA .
+
+  --- Removes the given name server from the SLIST map if its address is unknown.
+  --- Args: SLIST map, name server name
+  op removeNameFromSLISTMapIfNullAddr : Map{Name, Address} Name -> Map{Name, Address} .
+  eq removeNameFromSLISTMapIfNullAddr((NAME |-> ADDR, NA), NAME')
+    = if NAME == NAME' and ADDR == nullAddr
+        then removeNameFromSLISTMapIfNullAddr(NA, NAME')
+        else (NAME |-> ADDR, removeNameFromSLISTMapIfNullAddr(NA, NAME'))
+      fi .
+  eq removeNameFromSLISTMapIfNullAddr(empty, NAME') = empty .
+
+  --- Removes the given name (of a name server) from the SLISTs of an entire QueryStateSet if its address is unknown.
+  ---  If the removal of the given name leads to an empty SLIST in other queries, then these other queries are
+  ---  considered unresolvable and their respective QNAMEs are removed recursively from the SLISTs as well.
+  --- Args: QueryStateSet, name server name
+  op removeNameFromSLISTsOfQSSIfNullAddr : QueryStateSet Name -> QueryStateSet .
+  eq removeNameFromSLISTsOfQSSIfNullAddr(QSS, NAME) = $removeNameFromSLISTsOfQSSIfNullAddr(eptQSS, QSS, NAME) .
+
+  --- Args: resulting QueryStateSet, remainder of current iteration through QueryStateSet, names to remove
+  op $removeNameFromSLISTsOfQSSIfNullAddr : QueryStateSet QueryStateSet NameList -> QueryStateSet .
+  ceq $removeNameFromSLISTsOfQSSIfNullAddr(QSS, (QSTATE ;; QSS'), NAME NL)
+    = if NA =/= empty and NA' == empty --- map is now empty, but has not been before
+        then $removeNameFromSLISTsOfQSSIfNullAddr((QSS ;; QSTATE'), QSS', NAME NL NAME')
+        else $removeNameFromSLISTsOfQSSIfNullAddr((QSS ;; QSTATE'), QSS', NAME NL)
+      fi
+    if queryState(query(ID, NAME', RTYPE), ADDR, NAME'', ID', qminState(SNAME_FULL, N, N', B),
+         ANS, < NAME''' NA >) := QSTATE /\
+       NA' := removeNameFromSLISTMapIfNullAddr(NA, NAME) /\
+       QSTATE' := queryState(query(ID, NAME', RTYPE), ADDR, NAME'', ID', qminState(SNAME_FULL, N, N', B),
+         ANS, < NAME''' NA' >) .
+  eq $removeNameFromSLISTsOfQSSIfNullAddr(QSS, eptQSS, NAME NL)
+    = $removeNameFromSLISTsOfQSSIfNullAddr(eptQSS, QSS, NL) .
+  eq $removeNameFromSLISTsOfQSSIfNullAddr(eptQSS, QSS, nilNL) = QSS .
+
+  --- Removes all name servers with unknown address from the SLIST map for which no subquery exists in the
+  ---   given QueryStateSet. This function can be used to "clean up" the SLIST.
+  --- Args: SLIST map, other queries, Id of current query
+  op removeNamesWithoutSubqueriesFromSLISTMap : Map{Name, Address} QueryStateSet Id -> Map{Name, Address} .
+  ceq removeNamesWithoutSubqueriesFromSLISTMap((NAME |-> nullAddr, NA), QSTATE ;; QSS, ID)
+    = (NAME |-> nullAddr), removeNamesWithoutSubqueriesFromSLISTMap(NA, QSTATE ;; QSS, ID)
+    if queryState(query(ID', NAME, RTYPE), ADDR, NAME'', ID'', QMIN, ANS, ZS) := QSTATE /\
+       isIdPrefix(ID, ID') .
+  eq removeNamesWithoutSubqueriesFromSLISTMap((NAME |-> nullAddr, NA), QSS, ID)
+    = removeNamesWithoutSubqueriesFromSLISTMap(NA, QSS, ID) [owise] . --- No subquery
+  eq removeNamesWithoutSubqueriesFromSLISTMap((NAME |-> ADDR, NA), QSS, ID)
+    = (NAME |-> ADDR), removeNamesWithoutSubqueriesFromSLISTMap(NA, QSS, ID) [owise] . --- ADDR =/= nullAddr
+  eq removeNamesWithoutSubqueriesFromSLISTMap(empty, QSS, ID) = empty .
+
+  --- Update the SLISTs of the blockedQueries and sentQueries based on a response to a resolver subquery.
+  ---   If the query was answered positively, the SLISTs are enhanced with the newly learned addresses.
+  ---   If the query was answered negatively, the QNAME is removed from the SLISTs. If the removal of the QNAME leads
+  ---   to an empty SLIST in other queries, then these other queries are considered unresolvable and their respective
+  ---   QNAMEs are removed recursively from the SLISTs (of both blockedQueries and sentQueries) as well.
+  op updateSLISTsOfQSSs : QueryStateSet QueryStateSet Response -> PairQueryStateSet .
+  ceq updateSLISTsOfQSSs(QSS, QSS', response(ID, NAME, ANS, AUTH, ADD, 0))
+    = pairQSS(
+        enhanceSLISTsOfQSS(QSS, ANS),
+        enhanceSLISTsOfQSS(QSS', ANS)
+      )
+    if filterRType(a, ANS) =/= nil .
+  eq updateSLISTsOfQSSs(QSS, QSS', response(ID, NAME, ANS, AUTH, ADD, RCODE))
+    = splitQSSInQSS(
+        removeNameFromSLISTsOfQSSIfNullAddr(QSS ;; QSS', NAME),
+        QSS
+    ) [owise] .
+
+  -----------------------------
+  --- [NAME SERVER HELPERS] ---
+  -----------------------------
+
+  --- "Search the available zones for the zone which is the nearest ancestor to QNAME."
+  ---   (Alg. 4.3.2, step 2)
+  ---   Returns the SOA record of the nearest ancestor zone.
+  ---   We identify zones by the presence of a SOA record.
+  ---   The function is not defined for invalid arguments (i.e., if there is no nearest ancestor).
+  --- Args: QNAME, database
+  op nearestAncestorSOA : Name List{Record} -> [Record] .
+  ceq nearestAncestorSOA(NAME, RS)
+    = RS'
+    if RS' := lookupRecords(NAME, soa, RS) /\
+       RS' =/= nil .
+  ceq nearestAncestorSOA(NAME, RS)
+    = nearestAncestorSOA(parentDomain(NAME), RS)
+    if not(isSingleLabel(NAME)) [owise] .
+
+  --- Returns the second name, but with one label added in front s.t. the first name is (still) a subdomain
+  ---   of the first name. The function is not defined for invalid arguments.
+  ---   Example: oneLabelDown(www.example.com, com) == example.com
+  --- Args: full domain, ancestor domain
+  op oneLabelDown : Name Name -> [Name] .
+  ceq oneLabelDown(NAME, NAME')
+    = NAME'' . NAME'
+    if NAME'' . NAME' := NAME /\
+       isSingleLabel(NAME'') .
+  ceq oneLabelDown(NAME, NAME')
+    = NAME'' . NAME'
+    if NAME''' . NAME'' . NAME' := NAME /\
+       isSingleLabel(NAME'') .
+
+  --- A generalization of the above function: Adds N labels in front instead of just one.
+  --- Args: full domain, ancestor domain, number of labels to add
+  op nLabelsDown : Name Name Nat -> [Name] .
+  eq nLabelsDown(NAME, NAME', s N) = nLabelsDown(NAME, oneLabelDown(NAME, NAME'), N) .
+  eq nLabelsDown(NAME, NAME', 0) = NAME' .
+
+  --- Returns whether a node (given by a name) "exists" in the tree abstraction of the database.
+  ---   A node "exists" iff there are associated RRsets for its name OR a descendent of the node exists.
+  ---   Note that in our list implementation of the database, a node may exist even if there is
+  ---   no record associated with it in the database.
+  --- Args: name, database
+  op nodeExists : Name List{Record} -> Bool .
+  eq nodeExists(NAME, < NAME, RTYPE, TTL, RDATA > RS) = true . --- found a record for this node
+  ceq nodeExists(NAME, < NAME', RTYPE, TTL, RDATA > RS) = true
+    if NAME'' . NAME := NAME' . --- found a record for a subnode
+  eq nodeExists(NAME, R RS) = nodeExists(NAME, RS) [owise] .
+  eq nodeExists(NAME, nil) = false .
+
+  --- Returns the value of a CNAME record, i.e., the canonical name.
+  ---   Note that the function is undefined for record types other than CNAME.
+  op getCanonicalName : Record -> [Name] .
+  eq getCanonicalName(< NAME, cname, TTL, NAME' >) = NAME' .
+
+  --- Synthesize records by setting a new owner name for an RRset.
+  --- Args: new owner name, records
+  op synthesizeRecs : Name List{Record} -> List{Record} .
+  eq synthesizeRecs(NAME, < NAME', RTYPE, TTL, RDATA > RS)
+    = < NAME, RTYPE, TTL, RDATA > synthesizeRecs(NAME, RS) .
+  eq synthesizeRecs(NAME, nil) = nil .
+
+  --- Perform DNAME substitution, i.e., substitute the DNAME target for the owner part of the QNAME.
+  ---   The function returns nullName for invalid arguments.
+  --- Args: QNAME, DNAME record
+  op dnameSubstitution : Name Record -> Name .
+  eq dnameSubstitution(NAME . NAME', < NAME', dname, TTL, NAME'' >) = NAME . NAME'' .
+  eq dnameSubstitution(NAME, R) = nullName [owise] .
+
+  --- Synthesize a CNAME record for a DNAME substitution operation.
+  ---   The function is not defined for invalid arguments or may return a CNAME with nullName target.
+  --- Args: QNAME, DNAME record
+  op dnameSynthesis : Name Record -> [Record] .
+  eq dnameSynthesis(QNAME, < NAME, dname, TTL, NAME' >)
+    = < QNAME, cname, TTL, dnameSubstitution(QNAME, < NAME, dname, TTL, NAME' >) > .
+
+  --- Finds the glue records for a given list of NS records, if available.
+  --- Args: NS records for which glue should be found, database
+  op findGlue : List{Record} List{Record} -> List{Record} .
+  eq findGlue(< NAME, ns, TTL, NAME' > RS, RS')
+    = lookupRecords(NAME', a, RS') findGlue(RS, RS') .
+  eq findGlue(R RS, RS') = findGlue(RS, RS') . --- ignore non-NS records
+  eq findGlue(nil, RS') = nil .
+
+  --- Returns the size of the given Queue.
+  op queueSize : Queue -> Nat .
+  eq queueSize(QE QUEUE) = s queueSize(QUEUE) .
+  eq queueSize(nilQueue) = 0 .
+
+  -------------------------------
+  --- [NAME SERVER ALGORITHM] ---
+  -------------------------------
+
+  --- Core name server algorithm ("matching down").
+  ---   [Alg. 4.3.2, step 2-3] [refined in RFC 4592, §3.3.3]
+  ---   This is just a top-level wrapper that initializes the "internal" arguments. The actual work happens
+  ---   in the two functions below.
+  ---   Note that this function does not terminate if there is a local rewrite loop.
+  --- Args: id, QNAME, QTYPE, database
+  op matchDown : Id Name RType List{Record} -> Response .
+  eq matchDown(ID, NAME, QTYPE, RS) = matchDownRec(ID, NAME, QTYPE, nil, RS, NAME) .
+
+  --- We need to handle the special case where the target name of the "match down" operation is the top node
+  --- of a zone. In this case, the NS records at the node do not mark a zone cut.
+  --- The $matchDownRec function below cannot distinguish this special case, thus we use this wrapper function
+  --- to handle the special case and initialize the actual recursion.
+  --- Args: id, QNAME, QTYPE, current Answer section, database, original QNAME
+  op matchDownRec : Id Name RType List{Record} List{Record} Name -> Response .
+  ceq matchDownRec(ID, NAME, QTYPE, ANS, RS, NAME'')
+    = if NAME == NAME' then
+        --- The target name is the top node of the zone
+        response(ID, NAME'',
+          ANS lookupRecords(NAME, QTYPE, RS),
+          if lookupRecords(NAME, QTYPE, RS) == nil then < NAME', soa, min(TTL, TTL'), soaData(TTL') > else nil fi,
+          nil,
+          0
+        )
+      else
+        --- The target name is not the top node of the zone, so add the next label and continue matching down
+        $matchDownRec(ID, NAME, QTYPE, oneLabelDown(NAME, NAME'), ANS, RS, NAME'',
+          < NAME', soa, min(TTL, TTL'), soaData(TTL') >) --- Note the new TTL
+      fi
+    if R := nearestAncestorSOA(NAME, RS) /\
+       < NAME', soa, TTL, soaData(TTL') > := R .
+  --- If no ancestor zone is found, the behavior depends on whether the query has been rewritten:
+  ---  * NOERROR if the query has been rewritten.
+  ---  * REFUSED if we are still looking for the original QNAME.
+  --- Note: This behavior is not clearly specified in RFCs.
+  eq matchDownRec(ID, NAME, QTYPE, ANS, RS, NAME'')
+    = response(ID, NAME'', ANS, nil, nil, if NAME == NAME'' then 5 else 0 fi) [owise] .
+
+  --- The actual recursive function for the "match down" operation.
+  --- Args:
+  --- * id
+  --- * current QNAME: the name to which we are matching down.
+  ---   Note that this may be different from the original query name due to CNAMEs that have been followed.
+  --- * QTYPE
+  --- * current name (node) in the "match down" operation
+  --- * current Answer section
+  --- * database
+  --- * original QNAME (the QNAME that should be put in the response)
+  --- * SOA record of the zone, with TTL being the minimum of the (original) TTL and the MINIMUM field
+  op $matchDownRec : Id Name RType Name List{Record} List{Record} Name Record -> Response .
+
+  --- Case 3b: We encounter NS records, i.e., "a match would take us out of the authoritative data"
+  --- Create a referral response, add glue records
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    = response(ID, NAME'', ANS, RS', findGlue(RS', RS), 0)
+    if nodeExists(NAME', RS) /\
+       --- NS records
+       RS' := lookupRecords(NAME', ns, RS) /\
+       RS' =/= nil .
+
+  --- Case 3a: The whole of QNAME is matched, i.e., we have found the node
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    = if RS' =/= nil and not(match(QTYPE, cname)) then
+        --- If there is a CNAME record at the node and QTYPE doesn't match CNAME,
+        --- change QNAME to the canonical name and restart for this new QNAME
+        matchDownRec(ID, getCanonicalName(RS'), QTYPE, ANS RS', RS, NAME'')
+      else
+        --- Otherwise, copy all RRs which match QTYPE into the answer section
+        response(ID, NAME'',
+          ANS RS'',
+          if RS'' == nil then R else nil fi,
+          nil,
+          0
+        )
+      fi
+    if nodeExists(NAME', RS) /\
+       nil == lookupRecords(NAME', ns, RS) /\
+       NAME == NAME' /\
+       --- CNAME records
+       RS' := lookupRecords(NAME, cname, RS) /\
+       --- Records of actual QTYPE
+       RS'' := lookupRecords(NAME, QTYPE, RS) .
+
+  --- Node exists, but we need to continue matching down (neither found the target node nor a zone cut)
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    = $matchDownRec(ID, NAME, QTYPE, oneLabelDown(NAME, NAME'), ANS, RS, NAME'', R)
+    if nodeExists(NAME', RS) [owise] .
+
+  --- Case 3c/DNAME: The node does not exist and the last label matched has a DNAME record
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    = if nameLength(NAME''') > 255 then
+        --- Name after substitution exceeds max domain length, return YXDOMAIN
+        response(
+          ID, NAME'',
+          ANS
+          --- The DNAME record is included in the answer only once (see RFC 2181, §5.5)
+          if occurs(R', ANS)
+            then nil
+            else R'
+          fi,
+          nil, nil, 6) --- YXDOMAIN
+      else
+        --- Perform the substitution, synthesize CNAME record, and restart for the new QNAME
+        matchDownRec(ID, NAME''', QTYPE,
+                      ANS
+                      --- The DNAME record is included in the answer only once (see RFC 2181, §5.5)
+                      if occurs(R', ANS)
+                        then nil
+                        else R'
+                      fi
+                      dnameSynthesis(NAME, R'),
+                      RS, NAME''
+                    )
+      fi
+    if not(nodeExists(NAME', RS)) /\
+       --- The last label matched has a DNAME record
+       R' := lookupRecords(parentDomain(NAME'), dname, RS) /\
+       --- Name after substitution
+       NAME''' := dnameSubstitution(NAME, R') .
+
+  --- Case 3c/Wildcard: The node does not exist, there is no DNAME match, and the wildcard "source of synthesis" exists
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    = if RS' =/= nil and not(match(QTYPE, cname)) then
+        --- If the data at the source of synthesis is a CNAME, and QTYPE doesn't match CNAME,
+        --- change QNAME to the canonical name and restart for this new QNAME (see RFC 4592, §3.3.3)
+        matchDownRec(ID, getCanonicalName(RS'), QTYPE, ANS synthesizeRecs(NAME, RS'), RS, NAME'')
+      else
+        --- Otherwise (no CNAME at source of synthesis), synthesize records
+        response(
+          ID, NAME'',
+          ANS synthesizeRecs(NAME, RS''),
+          if RS'' == nil then R else nil fi,
+          nil,
+          0
+        )
+      fi
+    if not(nodeExists(NAME', RS)) /\
+       --- The last label matched does not have a DNAME record
+       nil == lookupRecords(parentDomain(NAME'), dname, RS) /\
+       --- The "source of synthesis" (RFC 4592) exists
+       nodeExists(wildcard . parentDomain(NAME'), RS) /\
+       --- CNAME records at source of synthesis
+       RS' := lookupRecords(wildcard . parentDomain(NAME'), cname, RS) /\
+       --- Records of actual QTYPE
+       RS'' := lookupRecords(wildcard . parentDomain(NAME'), QTYPE, RS) .
+
+  --- Case 3c/NXDOMAIN: The node does not exist, there is no DNAME match, and the wildcard "source of synthesis" does not exist
+  ceq $matchDownRec(ID, NAME, QTYPE, NAME', ANS, RS, NAME'', R)
+    --- Note that a name error is set regardless whether we followed CNAMEs/DNAMEs (see RFC 6604, §3)
+    = response(ID, NAME'', ANS, R, nil, 3)
+    if not(nodeExists(NAME', RS)) [owise] .
+
+  -----------------
+  --- [MONITOR] ---
+  -----------------
+
+  var IAF : IdAddrFloatMap .
+  var AF : AddrFloatMap .
+  vars NUM NUM' : Float .
+
+  var IALMAP : IdAddrListMap .
+  var AL : AddrList .
+
+  --- Monitor statistics for initial state
+  ---   This equation can be used to store information about the initial state in the monitor.
+  ---   If this is desired, the initial configuration should be wrapped inside the initSnapshot operator, which
+  ---   guarantees that this equation is used before any rewrite rules are applied.
+  eq initSnapshot(< ADDR : Monitor | init: false, nsRecs: eptTARecsS, STATE > C)
+    = < ADDR : Monitor | init: true, nsRecs: dbsFromConfig(C), STATE > C .
+  
+  --- Add the given number to the entry for the given address.
+  op addAF : Float Address AddrFloatMap -> AddrFloatMap .
+  eq addAF(NUM, ADDR, (addrFloatEntry(ADDR, NUM'), AF))
+    = (addrFloatEntry(ADDR, NUM' + NUM), AF) .
+  eq addAF(NUM, ADDR, AF)
+    = (addrFloatEntry(ADDR, NUM), AF) [owise] . --- first time, initialize
+
+  --- Add the given number to the entry for the given message id and address.
+  op addIAF : Float Id Address IdAddrFloatMap -> IdAddrFloatMap .
+  ceq addIAF(NUM, ID, ADDR, (idAddrFloatEntry(ID', AF), IAF))
+    = (idAddrFloatEntry(ID', addAF(NUM, ADDR, AF)), IAF)
+    if ID' == getClientId(ID) .  --- both outer and inner exist
+  eq addIAF(NUM, ID, ADDR, IAF) = (idAddrFloatEntry(getClientId(ID), addrFloatEntry(ADDR, NUM)), IAF) [owise] . --- first time; initialized
+
+  --- Increment the entry for the given address.
+  op incrAF : Address AddrFloatMap -> AddrFloatMap .
+  eq incrAF(ADDR, AF) = addAF(1.0, ADDR, AF) .
+
+  --- Increment the entry for the given message id and address.
+  op incr : Id Address IdAddrFloatMap -> IdAddrFloatMap .
+  eq incr(ID, ADDR, IAF) = addIAF(1.0, ID, ADDR, IAF) .
+
+  --- Increment the entries for the message ids appearing in the given QueryStateSet and for the given address.
+  op incrForQSS : QueryStateSet Address IdAddrFloatMap -> IdAddrFloatMap .
+  ceq incrForQSS((QSTATE ;; QSS), ADDR, IAF)
+    = incrForQSS(QSS, ADDR, incr(ID, ADDR, IAF))
+    if queryState(Q, ADDR', NAME, ID, QMIN, ANS, < NAME' NA >) := QSTATE .
+  eq incrForQSS(eptQSS, ADDR, IAF) = IAF .
+
+  --- Create an IdFloatMap with entries for the given QSS, all with the given value.
+  op idFloatMapForQSS : QueryStateSet Float -> IdFloatMap .
+  ceq idFloatMapForQSS((QSTATE ;; QSS), T)
+    = (idFloatEntry(ID, T), idFloatMapForQSS(QSS, T))
+    if queryState(query(ID, QNAME, QTYPE), ADDR', NAME, ID', QMIN, ANS, ZS) := QSTATE .
+  eq idFloatMapForQSS(eptQSS, T) = emptyIF .
+
+  --- Create a TupleAddrRecsSet storing the database of each name server in the configuration.
+  op dbsFromConfig : Config -> TupleAddrRecsSet .
+  eq dbsFromConfig(< ADDR : Nameserver | db: RS, STATE > C)
+    = tupleAddrRecs(ADDR, RS) dbsFromConfig(C) .
+  eq dbsFromConfig(C) = eptTARecsS [owise] .
+
+endm

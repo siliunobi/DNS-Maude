@@ -1,0 +1,35 @@
+load ../../src/nondet-model/dns
+load ../common/attacker
+
+mod ATTACKER is
+  inc DNS + ATTACKER-COMMON .
+
+  --- Variables
+  vars RSV NS MON : Address .
+  var ID : Id .
+  var QNAME : Name .
+  var QTYPE : RType .
+  var IAF : IdAddrFloatMap .
+  var AF : AddrFloatMap .
+  vars STATE STATE' : AttributeSet .
+
+  --- Malicious actors
+  op UnresponsiveNameserver : -> ActorType .
+
+  ---------------------------------
+  --- [UNRESPONSIVE NAMESERVER] ---
+  ---------------------------------
+  --- > Receive query from resolver and drop it.
+  --- Notes:
+  ---  * This rule can be used to model an inexistent name server.
+  rl [unresponsive-nameserver-drop-query] :
+  < MON : Monitor | msgsRcv: IAF, totalRcv: AF, STATE' >
+  < NS : UnresponsiveNameserver | STATE >
+  (to NS from RSV : query(ID, QNAME, QTYPE))
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    totalRcv: incrAF(NS, AF),
+                    STATE' >
+  < NS : UnresponsiveNameserver | STATE > .
+
+endm

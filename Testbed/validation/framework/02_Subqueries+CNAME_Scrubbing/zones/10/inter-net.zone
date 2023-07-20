@@ -1,0 +1,18 @@
+$TTL 3600
+@                       IN      SOA     server.inter.net. username.inter.net. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.inter.net.
+                        IN      A       1.2.3.4
+ns.inter.net.         IN      A       172.20.0.6
+
+
+
+R0CH0.inter.net.        IN      NS      R1CH1.target.com.
+R0CH0.inter.net.        IN      NS      R2CH1.target.com.
+R0CH0.inter.net.        IN      NS      R3CH1.target.com.
+R0CH0.inter.net.        IN      NS      R4CH1.target.com.
+R0CH0.inter.net.        IN      NS      R5CH1.target.com.
+R0CH0.inter.net.        IN      NS      R6CH1.target.com.
+R0CH0.inter.net.        IN      NS      R7CH1.target.com.
+R0CH0.inter.net.        IN      NS      R8CH1.target.com.
+R0CH0.inter.net.        IN      NS      R9CH1.target.com.
+R0CH0.inter.net.        IN      NS      R10CH1.target.com.

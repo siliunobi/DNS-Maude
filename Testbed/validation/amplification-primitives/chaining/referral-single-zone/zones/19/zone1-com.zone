@@ -1,0 +1,26 @@
+$TTL 0
+@                       IN      SOA     server.zone1. username.zone1.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.zone1.com.
+                        IN      A       1.2.3.4
+ns.zone1.com.         IN      A       172.20.0.5
+www.zone1.com.        IN      CNAME   zone1.com.
+
+; referral chain
+a.zone1.com.            IN      NS      b.zone1.com.
+b.zone1.com.            IN      NS      c.zone1.com.
+c.zone1.com.            IN      NS      d.zone1.com.
+d.zone1.com.            IN      NS      e.zone1.com.
+e.zone1.com.            IN      NS      f.zone1.com.
+f.zone1.com.            IN      NS      g.zone1.com.
+g.zone1.com.            IN      NS      h.zone1.com.
+h.zone1.com.            IN      NS      i.zone1.com.
+i.zone1.com.            IN      NS      j.zone1.com.
+j.zone1.com.            IN      NS      k.zone1.com.
+k.zone1.com.            IN      NS      l.zone1.com.
+l.zone1.com.            IN      NS      m.zone1.com.
+m.zone1.com.            IN      NS      n.zone1.com.
+n.zone1.com.            IN      NS      o.zone1.com.
+o.zone1.com.            IN      NS      p.zone1.com.
+p.zone1.com.            IN      NS      q.zone1.com.
+q.zone1.com.            IN      NS      r.zone1.com.
+r.zone1.com.            IN      NS      s.zone1.com.

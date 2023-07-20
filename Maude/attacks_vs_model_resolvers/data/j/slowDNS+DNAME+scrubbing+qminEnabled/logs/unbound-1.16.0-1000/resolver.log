@@ -1,0 +1,2 @@
+Jan 12 14:31:34 unbound[13:0] query: 172.20.0.9 sub.a1.target.com. A IN
+Jan 12 14:31:34 unbound[13:0] reply: 172.20.0.9 sub.a1.target.com. A IN SERVFAIL 0.049079 0 46

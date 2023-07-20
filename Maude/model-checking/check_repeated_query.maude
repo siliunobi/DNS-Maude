@@ -1,0 +1,163 @@
+load preds
+load ../test/nondet-model/test_helpers
+
+--- This example illustrates two possible causes for repeated queries: Circular nameserver dependencies and
+--- QNAME minimization.
+--- For circular dependencies, the example is identical to the one in check_circular_dependency.maude.
+--- For QNAME minimization, the example1.nz and example2.nz zones are crafted in such a way that the resolution
+--- of alias.sub.example1.nz results in the name sub.example1.nz being queried twice.
+
+mod DNS-CHECK is
+  pr DNS-PREDS .
+  inc MODEL-CHECKER .
+  inc LTL-SIMPLIFIER .
+
+  inc TEST-HELPERS .
+
+  eq monitorSlistArgsLog? = true . --- required for the property
+  eq qminQTYPE = mx . --- fix the type for QNAME minimization
+
+  var QS : List{Query} .
+  var CACHE : Cache .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  ops q q' q'' : -> Query .
+  eq q = query(1, 'www . 'domainA . 'nz . root, a) .
+  eq q' = query(2, 'www . 'nz . root, a) .
+  eq q'' = query(3, 'alias . 'sub . 'example1 . 'nz . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNS1nz addrNS2nz addrNSa addrNSb addrNSexample1 addrNSexample2 : -> Address .
+
+  ops dbRoot dbNZ dbNZnoglue dbDomainA dbDomainB dbExample1 dbExample2 : -> List{Record} .
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot > --- actually, not authoritative, but unimportant for this example
+
+    --- non-authoritative data
+    < 'nz . root, ns, testTTL, 'ns1 . 'nz . root >
+    < 'nz . root, ns, testTTL, 'ns2 . 'nz . root >
+    < 'ns1 . 'nz . root, a, testTTL, addrNS1nz > --- glue
+    < 'ns2 . 'nz . root, a, testTTL, addrNS2nz > . --- glue
+
+  eq dbNZ =
+    --- authoritative data
+    < 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'nz . root, ns, testTTL, 'ns1 . 'nz . root >
+    < 'nz . root, ns, testTTL, 'ns2 . 'nz . root >
+    < 'ns1 . 'nz . root, a, testTTL, addrNS1nz > --- glue
+    < 'ns2 . 'nz . root, a, testTTL, addrNS2nz > --- glue
+
+    --- non-authoritative data
+    < 'example1 . 'nz . root, ns, testTTL, 'ns . 'example1 . 'nz . root >
+    < 'ns . 'example1 . 'nz . root, a, testTTL, addrNSexample1 >
+    < 'example2 . 'nz . root, ns, testTTL, 'ns . 'example2 . 'nz . root >
+    < 'ns . 'example2 . 'nz . root, a, testTTL, addrNSexample2 >
+
+    < 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+    < 'ns . 'domainB . 'nz . root, a, testTTL, addrNSa > --- glue
+
+    < 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+    < 'ns . 'domainA . 'nz . root, a, testTTL, addrNSa > --- glue
+    .
+
+  eq dbNZnoglue =
+    --- authoritative data
+    < 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'nz . root, ns, testTTL, 'ns1 . 'nz . root >
+    < 'nz . root, ns, testTTL, 'ns2 . 'nz . root >
+    < 'ns1 . 'nz . root, a, testTTL, addrNS1nz > --- glue
+    < 'ns2 . 'nz . root, a, testTTL, addrNS2nz > --- glue
+
+    --- non-authoritative data
+    < 'example1 . 'nz . root, ns, testTTL, 'ns . 'example1 . 'nz . root >
+    < 'ns . 'example1 . 'nz . root, a, testTTL, addrNSexample1 >
+    < 'example2 . 'nz . root, ns, testTTL, 'ns . 'example2 . 'nz . root >
+    < 'ns . 'example2 . 'nz . root, a, testTTL, addrNSexample2 >
+
+    < 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+
+    < 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+    .
+
+  eq dbExample1 =
+    --- authoritative data
+    < 'example1 . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'example1 . 'nz . root, ns, testTTL, 'ns . 'example1 . 'nz . root >
+    < 'ns . 'example1 . 'nz . root, a, testTTL, addrNSexample1 >
+    
+    < 'sub . 'example1 . 'nz . root, mx, testTTL, nullAddr > --- prevent NODATA response when QNAME minimization queries this name
+    < 'alias . 'sub . 'example1 . 'nz . root, cname, testTTL, 'alias . 'example2 . 'nz . root >
+    < 'www . 'sub . 'example1 . 'nz . root, a, testTTL, 1 . 2 . 3 . 4 > .
+
+  eq dbExample2 =
+    --- authoritative data
+    < 'example2 . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'example2 . 'nz . root, ns, testTTL, 'ns . 'example2 . 'nz . root >
+    < 'ns . 'example2 . 'nz . root, a, testTTL, addrNSexample2 >
+    
+    < 'alias . 'example2 . 'nz . root, cname, testTTL, 'www . 'sub . 'example1 . 'nz . root > .
+
+  eq dbDomainA =
+    --- authoritative data
+    < 'domainA . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  eq dbDomainB =
+    --- authoritative data
+    < 'domainB . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  op initConfig : List{Query} Cache -> Config .
+  eq initConfig(QS, CACHE) =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < cAddr : Client | queries: QS, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: CACHE,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Name servers
+    < addrRoot : Nameserver | db: dbRoot, queue: nilQueue >
+    < addrNS1nz : Nameserver | db: dbNZ, queue: nilQueue >
+    < addrNS2nz : Nameserver | db: dbNZnoglue, queue: nilQueue >
+    < addrNSexample1 : Nameserver | db: dbExample1, queue: nilQueue >
+    < addrNSexample2 : Nameserver | db: dbExample2, queue: nilQueue >
+    < addrNSa : Nameserver | db: dbDomainA, queue: nilQueue >
+    < addrNSb : Nameserver | db: dbDomainB, queue: nilQueue > .
+
+endm
+
+--- Repeated query due to circular dependency:
+
+rew initConfig(q, nilCache) .
+
+--- There is no way to encounter a repeated query for www.nz.
+search [1] initConfig(q', nilCache) =>* C:Config such that hasRepeatedQuery(C:Config) .
+
+--- There is an execution that has a repeated query (due to circular nameserver dependency here).
+search [1] initConfig(q, nilCache) =>* C:Config such that hasRepeatedQuery(C:Config) .
+
+
+--- Repeated query due to QNAME minimization:
+
+rew initConfig(q'', nilCache) .
+
+--- There is an execution that has a repeated query (due to QNAME minimization here).
+search [1] initConfig(q'', nilCache) =>* C:Config such that hasRepeatedQuery(C:Config) .
+
+red modelCheck(initConfig(q'', nilCache), [] ~ propRepeatedQuery) .

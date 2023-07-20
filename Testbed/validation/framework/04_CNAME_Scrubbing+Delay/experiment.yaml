@@ -1,0 +1,16 @@
+name: "CNAME Scrubbing + Delay"
+target: "target-com"
+measure: "duration"
+queries:
+  - zone: "a1.target.com"
+    record: "A"
+qmin: false
+delay: [0, 200, 400, 600, 800, 1000, 1200, 1400]
+delayedZones:
+  - "target-com"
+warmup:
+  - "target.com"
+  - "www.target.com"
+  - "www1.target.com"
+timeout: 3s
+testbed: validation/framework/testbed-framework.yaml

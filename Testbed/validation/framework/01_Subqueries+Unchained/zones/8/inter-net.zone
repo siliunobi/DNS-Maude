@@ -1,0 +1,188 @@
+$TTL 3600
+@                       IN      SOA     server.inter.net. username.inter.net. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.inter.net.
+                        IN      A       1.2.3.4
+ns.inter.net.         IN      A       172.20.0.6
+
+
+
+R0CH0.inter.net.        IN      NS      R1CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R2CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R3CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R4CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R5CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R6CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R7CH1.target.com.
+
+R0CH0.inter.net.        IN      NS      R8CH1.target.com.
+
+
+
+    
+R1CH2.inter.net.         IN      CNAME   R1CH3.target.com.
+    
+R1CH4.inter.net.         IN      CNAME   R1CH5.target.com.
+    
+R1CH6.inter.net.         IN      CNAME   R1CH7.target.com.
+    
+R1CH8.inter.net.         IN      CNAME   R1CH9.target.com.
+    
+R1CH10.inter.net.         IN      CNAME   R1CH11.target.com.
+    
+R1CH12.inter.net.         IN      CNAME   R1CH13.target.com.
+    
+R1CH14.inter.net.         IN      CNAME   R1CH15.target.com.
+    
+R1CH16.inter.net.         IN      CNAME   R1CH17.target.com.
+    
+R1CH18.inter.net.         IN      CNAME   R1CH19.target.com.
+    
+
+    
+R2CH2.inter.net.         IN      CNAME   R2CH3.target.com.
+    
+R2CH4.inter.net.         IN      CNAME   R2CH5.target.com.
+    
+R2CH6.inter.net.         IN      CNAME   R2CH7.target.com.
+    
+R2CH8.inter.net.         IN      CNAME   R2CH9.target.com.
+    
+R2CH10.inter.net.         IN      CNAME   R2CH11.target.com.
+    
+R2CH12.inter.net.         IN      CNAME   R2CH13.target.com.
+    
+R2CH14.inter.net.         IN      CNAME   R2CH15.target.com.
+    
+R2CH16.inter.net.         IN      CNAME   R2CH17.target.com.
+    
+R2CH18.inter.net.         IN      CNAME   R2CH19.target.com.
+    
+
+    
+R3CH2.inter.net.         IN      CNAME   R3CH3.target.com.
+    
+R3CH4.inter.net.         IN      CNAME   R3CH5.target.com.
+    
+R3CH6.inter.net.         IN      CNAME   R3CH7.target.com.
+    
+R3CH8.inter.net.         IN      CNAME   R3CH9.target.com.
+    
+R3CH10.inter.net.         IN      CNAME   R3CH11.target.com.
+    
+R3CH12.inter.net.         IN      CNAME   R3CH13.target.com.
+    
+R3CH14.inter.net.         IN      CNAME   R3CH15.target.com.
+    
+R3CH16.inter.net.         IN      CNAME   R3CH17.target.com.
+    
+R3CH18.inter.net.         IN      CNAME   R3CH19.target.com.
+    
+
+    
+R4CH2.inter.net.         IN      CNAME   R4CH3.target.com.
+    
+R4CH4.inter.net.         IN      CNAME   R4CH5.target.com.
+    
+R4CH6.inter.net.         IN      CNAME   R4CH7.target.com.
+    
+R4CH8.inter.net.         IN      CNAME   R4CH9.target.com.
+    
+R4CH10.inter.net.         IN      CNAME   R4CH11.target.com.
+    
+R4CH12.inter.net.         IN      CNAME   R4CH13.target.com.
+    
+R4CH14.inter.net.         IN      CNAME   R4CH15.target.com.
+    
+R4CH16.inter.net.         IN      CNAME   R4CH17.target.com.
+    
+R4CH18.inter.net.         IN      CNAME   R4CH19.target.com.
+    
+
+    
+R5CH2.inter.net.         IN      CNAME   R5CH3.target.com.
+    
+R5CH4.inter.net.         IN      CNAME   R5CH5.target.com.
+    
+R5CH6.inter.net.         IN      CNAME   R5CH7.target.com.
+    
+R5CH8.inter.net.         IN      CNAME   R5CH9.target.com.
+    
+R5CH10.inter.net.         IN      CNAME   R5CH11.target.com.
+    
+R5CH12.inter.net.         IN      CNAME   R5CH13.target.com.
+    
+R5CH14.inter.net.         IN      CNAME   R5CH15.target.com.
+    
+R5CH16.inter.net.         IN      CNAME   R5CH17.target.com.
+    
+R5CH18.inter.net.         IN      CNAME   R5CH19.target.com.
+    
+
+    
+R6CH2.inter.net.         IN      CNAME   R6CH3.target.com.
+    
+R6CH4.inter.net.         IN      CNAME   R6CH5.target.com.
+    
+R6CH6.inter.net.         IN      CNAME   R6CH7.target.com.
+    
+R6CH8.inter.net.         IN      CNAME   R6CH9.target.com.
+    
+R6CH10.inter.net.         IN      CNAME   R6CH11.target.com.
+    
+R6CH12.inter.net.         IN      CNAME   R6CH13.target.com.
+    
+R6CH14.inter.net.         IN      CNAME   R6CH15.target.com.
+    
+R6CH16.inter.net.         IN      CNAME   R6CH17.target.com.
+    
+R6CH18.inter.net.         IN      CNAME   R6CH19.target.com.
+    
+
+    
+R7CH2.inter.net.         IN      CNAME   R7CH3.target.com.
+    
+R7CH4.inter.net.         IN      CNAME   R7CH5.target.com.
+    
+R7CH6.inter.net.         IN      CNAME   R7CH7.target.com.
+    
+R7CH8.inter.net.         IN      CNAME   R7CH9.target.com.
+    
+R7CH10.inter.net.         IN      CNAME   R7CH11.target.com.
+    
+R7CH12.inter.net.         IN      CNAME   R7CH13.target.com.
+    
+R7CH14.inter.net.         IN      CNAME   R7CH15.target.com.
+    
+R7CH16.inter.net.         IN      CNAME   R7CH17.target.com.
+    
+R7CH18.inter.net.         IN      CNAME   R7CH19.target.com.
+    
+
+    
+R8CH2.inter.net.         IN      CNAME   R8CH3.target.com.
+    
+R8CH4.inter.net.         IN      CNAME   R8CH5.target.com.
+    
+R8CH6.inter.net.         IN      CNAME   R8CH7.target.com.
+    
+R8CH8.inter.net.         IN      CNAME   R8CH9.target.com.
+    
+R8CH10.inter.net.         IN      CNAME   R8CH11.target.com.
+    
+R8CH12.inter.net.         IN      CNAME   R8CH13.target.com.
+    
+R8CH14.inter.net.         IN      CNAME   R8CH15.target.com.
+    
+R8CH16.inter.net.         IN      CNAME   R8CH17.target.com.
+    
+R8CH18.inter.net.         IN      CNAME   R8CH19.target.com.
+    
+
+
+*.inter.net.      IN      A       1.2.3.4

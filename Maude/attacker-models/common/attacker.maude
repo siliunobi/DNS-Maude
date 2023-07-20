@@ -1,0 +1,123 @@
+load ../../src/common/prelim
+
+mod ATTACKER-COMMON is
+  inc SORTS + MSG .
+
+  --- Variables
+  var ADDR : Address .
+  vars NAME NAME' : Name .
+  var QTYPE : RType .
+  vars N N' N'' : Nat .
+  var TTL : Float .
+  vars R R' : Record .
+  var RS : List{Record} .
+
+  --- Helper functions
+
+  --- Creates a fake name consisting of a given prefix and a given number of fake labels.
+  ---   The number of fake labels can be zero, in which case the name prefix is returned as-is.
+  --- Args: chain identifier, number of fake labels to add, name prefix
+  op fakeName : Nat Nat Name -> Name .
+  eq fakeName(N, s N', NAME)
+    = label2(N, N') . fakeName(N, N', NAME) .
+  eq fakeName(N, 0, NAME) = NAME .
+
+  --- Creates a list of fake delegation records
+  --- Args: num delegations to create, current counter, number of fake labels, owner name, value name prefix, TTL
+  op fakeDelegationRecords : Nat Nat Nat Name Name Float -> List{Record} .
+  eq fakeDelegationRecords(s N, N', N'', NAME, NAME', TTL)
+    = < NAME, ns, TTL, fakeName(N', N'', NAME') > fakeDelegationRecords(N, s N', N'', NAME, NAME', TTL) .
+  eq fakeDelegationRecords(0, N', N'', NAME, NAME', TTL) = nil .
+
+  --- Creates a list of queries, all for different subdomains of a given domain.
+  --- Args: number of queries to create, QNAME prefix, number of fake labels to add, query type, client address
+  op genQueries : Nat Name Nat RType Address -> List{Query} .
+  eq genQueries(s N, NAME, N', QTYPE, ADDR)
+    = query(clientId(ADDR, s N), fakeName(s N, N', NAME), QTYPE) genQueries(N, NAME, N', QTYPE, ADDR) .
+  eq genQueries(0, NAME, N', QTYPE, ADDR) = nil .
+
+  --- Returns every second record from the list, starting from the first element.
+  op splitList1 : List{Record} -> List{Record} .
+  eq splitList1(R R' RS) = R splitList1(RS) .
+  eq splitList1(R) = R .
+  eq splitList1(nil) = nil .
+
+  --- Returns every second record from the list, starting from the second element.
+  op splitList2 : List{Record} -> List{Record} .
+  eq splitList2(R RS) = splitList1(RS) .
+  eq splitList2(nil) = nil .
+
+  --- Get a simple CNAME chain for a DNS Unchained attack. This function returns the entire chain, which then needs to
+  ---   be split across two different name servers.
+  ---   Note: Using different chain identifiers, multiple chains can be placed on the same name server.
+  ---   Implementation note: We reuse the unchainedQminRecords function with zero extra labels.
+  --- Args: target name, intermediary name, chain length, chain identifier, TTL
+  op unchainedRecords : Name Name Nat Nat Float -> List{Record} .
+  eq unchainedRecords(NAME, NAME', N, N', TTL) = unchainedQminRecords(NAME, NAME', N, N', 0, TTL) .
+
+  --- Get one half of a simple CNAME chain for a DNS Unchained attack, namely the half that is to be placed on the
+  ---   target ANS.
+  ---   Note: Using different chain identifiers, multiple chains can be placed on the same name server.
+  --- Args: target name, intermediary name, chain length, chain identifier, TTL
+  op unchainedRecordsTarget : Name Name Nat Nat Float -> List{Record} .
+  eq unchainedRecordsTarget(NAME, NAME', N, N', TTL)
+    = splitList1(unchainedRecords(NAME, NAME', N, N', TTL)) .
+
+  --- Get the other half of a simple CNAME chain for a DNS Unchained attack, namely the half that is to be placed on
+  ---   the intermediary ANS.
+  ---   Note: Using different chain identifiers, multiple chains can be placed on the same name server.
+  --- Args: target name, intermediary name, chain length, chain identifier, TTL
+  op unchainedRecordsIntermediary : Name Name Nat Nat Float -> List{Record} .
+  eq unchainedRecordsIntermediary(NAME, NAME', N, N', TTL)
+    = splitList2(unchainedRecords(NAME, NAME', N, N', TTL)) .
+
+  --- Get a client query for the first element of the chain, i.e., a query that triggers the Unchained attack.
+  ---   Implementation note: We reuse the unchainedQminQuery function with zero extra labels.
+  --- Args: target name, chain length, chain identifier
+  op unchainedQuery : Name Nat Nat -> Query .
+  eq unchainedQuery(NAME, N, N') = unchainedQminQuery(NAME, N, N', 0) .
+
+  --- Get a CNAME chain for an Unchained+QMIN attack, i.e., an Unchained attack augmented with QNAME minimization.
+  ---   The records to be placed on the target ANS have many labels, whereas the records for the intermediary ANS do
+  ---   not.
+  --- Args: target name, intermediary name, chain length, chain identifier, number of extra labels, TTL
+  op unchainedQminRecords : Name Name Nat Nat Nat Float -> List{Record} .
+  eq unchainedQminRecords(NAME, NAME', s N, N', N'', TTL)
+    = < fakeName(N', N'', label2(N', s N) . NAME), cname, TTL, label2(N', N) . NAME' >
+      $unchainedQminRecords(NAME', NAME, N, N', N'', TTL) .
+  eq unchainedQminRecords(NAME, NAME', 0, N', N'', TTL)
+    = < fakeName(N', N'', label2(N', 0) . NAME), txt, TTL, nullAddr > . --- dummy value
+
+  op $unchainedQminRecords : Name Name Nat Nat Nat Float -> List{Record} .
+  eq $unchainedQminRecords(NAME, NAME', s N, N', N'', TTL)
+    = < label2(N', s N) . NAME, cname, TTL, fakeName(N', N'', label2(N', N) . NAME') >
+      unchainedQminRecords(NAME', NAME, N, N', N'', TTL) .
+  eq $unchainedQminRecords(NAME, NAME', 0, N', N'', TTL)
+    = < label2(N', 0) . NAME, txt, TTL, nullAddr > . --- dummy value
+
+  --- Get one half of an Unchained+QMIN chain, namely the half that is to be placed on the target ANS.
+  ---   Note: Using different chain identifiers, multiple chains can be placed on the same name server.
+  --- Args: target name, intermediary name, chain length, chain identifier, number of extra labels, TTL
+  op unchainedQminRecordsTarget : Name Name Nat Nat Nat Float -> List{Record} .
+  eq unchainedQminRecordsTarget(NAME, NAME', N, N', N'', TTL)
+    = splitList1(unchainedQminRecords(NAME, NAME', N, N', N'', TTL)) .
+
+  --- Get the other half of an Unchained+QMIN chain, namely the half that is to be placed on the intermediary ANS.
+  ---   Note: Using different chain identifiers, multiple chains can be placed on the same name server.
+  --- Args: target name, intermediary name, chain length, chain identifier, number of extra labels, TTL
+  op unchainedQminRecordsIntermediary : Name Name Nat Nat Nat Float -> List{Record} .
+  eq unchainedQminRecordsIntermediary(NAME, NAME', N, N', N'', TTL)
+    = splitList2(unchainedQminRecords(NAME, NAME', N, N', N'', TTL)) .
+
+  --- Get a client query for the first element of the chain, i.e., a query that triggers the Unchained+QMIN attack.
+  --- Args: target name, chain length, chain identifier, number of extra labels
+  op unchainedQminQuery : Name Nat Nat Nat -> Query .
+  eq unchainedQminQuery(NAME, N, N', N'') = query(N', fakeName(N', N'', label2(N', N) . NAME), txt) .
+
+  --- Get a client query for the first element of an iDNS delegation chain.
+  ---   Note: Using different chain identifiers, multiple delegation chains can be triggered.
+  --- Args: domain prefix, number of extra labels, chain identifier
+  op idnsQuery : Name Nat Nat -> Query .
+  eq idnsQuery(NAME, N, N') = query(N', fakeName(N', N, label2(N', 0) . NAME), a) .
+
+endm

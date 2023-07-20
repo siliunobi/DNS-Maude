@@ -1,0 +1,105 @@
+load preds
+load ../src/common/label_graph
+load ../test/nondet-model/test_helpers
+
+--- This is a simplified version of the "NZ event" as described in the tsuNAME paper,
+--- where all zones have only one name server.
+
+mod DNS-CHECK is
+  pr DNS-PREDS .
+  inc MODEL-CHECKER .
+  inc LTL-SIMPLIFIER .
+
+  inc TEST-HELPERS + LABEL-GRAPH .
+
+  eq monitorQueryLog? = true .
+  eq configTsuNAMEslistCircDep = true . --- enable TsuNAME-like resolver behavior
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'www . 'domainA . 'nz . root, a) .
+
+  op cache : -> Cache .
+  eq cache = nilCache .
+  --- eq cache = cacheEntry(< 'ns . 'domainA . 'nz . root, a, testTTL, addrNSa >, 1) .
+  --- eq cache = cacheEntry(< 'ns . 'domainB . 'nz . root, a, testTTL, addrNSa >, 1) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNSnz addrNSa addrNSb : -> Address .
+
+  ops zoneRoot zoneNZ zoneDomainA zoneDomainB : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot > --- actually, not authoritative, but unimportant for this example
+
+    --- non-authoritative data
+    < 'nz . root, ns, testTTL, 'ns . 'nz . root >
+    < 'ns . 'nz . root, a, testTTL, addrNSnz > . --- glue
+
+  eq zoneNZ =
+    --- authoritative data
+    < 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'nz . root, ns, testTTL, 'ns . 'nz . 'root >
+    < 'ns . 'nz . root, a, testTTL, addrNSnz >
+
+    --- non-authoritative data
+    < 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+    --- < 'ns . 'domainB . 'nz . root, a, testTTL, addrNSa > --- glue
+
+    < 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+    --- < 'ns . 'domainA . 'nz . root, a, testTTL, addrNSa > --- glue
+    .
+
+  eq zoneDomainA =
+    --- authoritative data
+    < 'domainA . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  eq zoneDomainB =
+    --- authoritative data
+    < 'domainB . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  op initConfigWithoutClient : -> Config .
+  eq initConfigWithoutClient =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < rAddr : Resolver | cache: cache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .nz authoritative name server
+    < addrNSnz : Nameserver | db: zoneNZ, queue: nilQueue >
+    --- SLD name servers
+    < addrNSa : Nameserver | db: zoneDomainB, queue: nilQueue >
+    < addrNSb : Nameserver | db: zoneDomainA, queue: nilQueue > .
+
+    op initConfig : -> Config .
+    eq initConfig =
+      initConfigWithoutClient
+      < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr > .
+
+endm
+
+--- rew initConfig .
+--- rew msgAmpFactorTerminal(cAddr ; addrNSa ; addrNSb, addrNSnz, initConfig) .
+
+red modelCheck(initConfigWithNonDetQuery(initConfigWithoutClient, rAddr, cAddr),
+               [] ~ propMsgAmpFactorGT(cAddr ; addrNSa ; addrNSb, addrNSnz, 30.0)) .

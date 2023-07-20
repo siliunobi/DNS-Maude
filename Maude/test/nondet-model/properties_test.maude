@@ -1,0 +1,124 @@
+load ../../src/nondet-model/properties
+
+--- some constants
+mod TEST is
+  inc PROPERTIES .
+
+  ops addr addr' mAddr : -> Address .
+  op name : -> Name .
+
+endm
+
+--- hasRepeatedQuery unit tests
+red hasRepeatedQuery(
+    < mAddr : Monitor | nsQueryLog: (
+      tupleAddrQuery(addr, query(1 .. ref .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(1 .. ref, 'ns . 'domainA . 'nz . root, a))
+    ) >
+) == true .
+
+red hasRepeatedQuery(
+    < mAddr : Monitor | nsQueryLog: (
+      tupleAddrQuery(addr, query(3 .. ref .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(1 .. ref .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(2 .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(1 .. ref, 'ns . 'domainA . 'nz . root, a))
+    ) >
+) == true .
+
+red hasRepeatedQuery(
+    < mAddr : Monitor | nsQueryLog: (
+      tupleAddrQuery(addr, query(1 .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(2 .. ref, 'ns . 'domainA . 'nz . root, a))
+    ) >
+) == false .
+
+red hasRepeatedQuery(
+    < mAddr : Monitor | nsQueryLog: (
+      tupleAddrQuery(addr, query(1 .. ref .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr', query(1 .. ref, 'ns . 'domainA . 'nz . root, a))
+    ) >
+) == false .
+
+red hasRepeatedQuery(
+    < mAddr : Monitor | nsQueryLog: (
+      tupleAddrQuery(addr, query(1 .. ref .. ref, 'ns . 'domainA . 'nz . root, a))
+      tupleAddrQuery(addr, query(1 .. ref, 'ns . 'domainB . 'nz . root, a))
+    ) >
+) == false .
+
+--- listsAgree unit tests
+red listsAgree(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+) == true .
+
+red listsAgree(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == true .
+
+red listsAgree(
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+) == false .
+
+red listsAgree(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'XXXXXXXX . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+) == false .
+
+--- consistentRRsets unit tests
+red consistentRRsets(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == true .
+
+red consistentRRsets(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == true .
+
+red consistentRRsets(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >,
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == true .
+
+red consistentRRsets(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'XXXXXXXX . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == false .
+
+red consistentRRsets(
+    < 'example . 'com . root, soa, 0.0, soaData(0.0) >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns2 . 'example . 'com . root >,
+    < 'example . 'com . root, ns, 0.0, 'XXXXXXXX . 'example . 'com . root >
+    < 'example . 'com . root, ns, 0.0, 'ns1 . 'example . 'com . root >
+) == false .

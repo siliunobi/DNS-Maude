@@ -1,0 +1,8 @@
+name: "CNAME Scrubbing + QMIN"
+target: "target-com"
+measure: "volume"
+queries:
+  - zone: "12.11.10.9.8.7.6.5.4.3.2.CH1.target.com."
+    record: "TXT"
+qmin: true
+testbed: validation/framework/testbed-framework.yaml

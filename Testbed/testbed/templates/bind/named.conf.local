@@ -1,0 +1,6 @@
+{{range $zone := .Zones}}
+zone "{{.QName}}" {
+        type master;
+        file "{{.ZoneFile}}";
+};
+{{end}}

@@ -1,0 +1,2 @@
+Jan 12 02:20:14 unbound[16:0] query: 172.20.0.9 del.inter.net. A IN
+Jan 12 02:20:14 unbound[16:0] reply: 172.20.0.9 del.inter.net. A IN SERVFAIL 0.028982 0 42

@@ -1,0 +1,88 @@
+load _aux
+load ../../test/probabilistic-model/test_helpers
+
+mod PROPERTIES is
+  inc AUX + TEST-HELPERS .
+
+  vars C C' : Config .
+  var ADDR : Address .
+  var ID : Id .
+  var IAF : IdAddrFloatMap .
+  var AF : AddrFloatMap .
+  vars F F' F'' NUM : Float .
+  var SL : ScheduleList .
+  var IALMAP : IdAddrListMap .
+  vars AL AL' : AddrList .
+  vars IF IF' : IdFloatMap .
+  var STATE : AttributeSet .
+  var AC : ActorConfig .
+  vars N N' : Nat .
+  var QS : List{Query} .
+
+  --------------------------------------
+  --- [MESSAGE AMPLIFICATION FACTOR] ---
+  --------------------------------------
+  --- i.e., #messages RECEIVED by the victim's actors divided by #messages SENT by the attacker's actors
+  --- Args: attacker's actors, victim's actors, final config
+  op msgAmpFactor : AddrList AddrList Config -> [Float] .
+  ceq msgAmpFactor(AL, AL', C) = numActorMsgsRecvd(AL', C) / numActorMsgsSent(AL, C)
+    if reachedTerminalConfig(C) .
+
+  --- Get total number of messages received by the given list of actors (list of addresses)
+  op numActorMsgsRecvd : AddrList Config -> [Float] .
+  eq numActorMsgsRecvd(AL, < ADDR : Monitor | totalRcv: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF) .
+
+  --- Get total number of messages sent by the given list of actors (list of addresses)
+  op numActorMsgsSent : AddrList Config -> [Float] .
+  eq numActorMsgsSent(AL, < ADDR : Monitor | totalSent: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF) .
+
+  op $numActorMsgsAF : AddrList AddrFloatMap -> Float .
+  eq $numActorMsgsAF(AL, (addrFloatEntry(ADDR, NUM), AF))
+    = if inAddrList(ADDR, AL)
+        then NUM + $numActorMsgsAF(AL, AF)
+        else $numActorMsgsAF(AL, AF)
+      fi .
+  eq $numActorMsgsAF(AL, emptyAF) = 0.0 .
+
+  ------------------------------------
+  --- [CLIENT QUERY SUCCESS RATIO] ---
+  ------------------------------------
+  --- Ratio of client queries that were answered with non-SERVFAIL status
+  op clientQSuccessRatio : Config -> [Float] .
+  eq clientQSuccessRatio(< ADDR : Monitor | clientQAnswered: N, clientQServfail: N', STATE > C)
+    = float(N + (- N')) / float(N) .
+
+  -----------------------------------
+  --- [MAX CLIENT QUERY DURATION] ---
+  -----------------------------------
+  --- The maximum duration that any client query took at a resolver.
+  op maxQueryDuration : Config -> Float .
+  ceq maxQueryDuration(C)
+    = $maxQueryDuration(IF, IF', 0.0)
+    if reachedTerminalConfig(C) /\
+       < ADDR : Monitor | clientQStartTime: IF, clientQEndTime: IF', STATE > C' := C .
+
+  op $maxQueryDuration : IdFloatMap IdFloatMap Float -> Float .
+  eq $maxQueryDuration((idFloatEntry(ID, F), IF), (idFloatEntry(ID, F'), IF'), F'')
+    = $maxQueryDuration(IF, IF', max(F'', F' - F)) .
+  eq $maxQueryDuration(IF, IF', F'') = F'' [owise] . --- No matching entries left
+
+  ---------------------------------------
+  --- [AVERAGE CLIENT QUERY DURATION] ---
+  ---------------------------------------
+  --- The average duration that client queries took at a resolver.
+  op avgQueryDuration : Config -> Float .
+  ceq avgQueryDuration(C)
+    = $avgQueryDuration(IF, IF', 0.0, 0.0)
+    if reachedTerminalConfig(C) /\
+       < ADDR : Monitor | clientQStartTime: IF, clientQEndTime: IF', STATE > C' := C .
+
+  --- Args: start times, end times, sum of durations, number of queries
+  op $avgQueryDuration : IdFloatMap IdFloatMap Float Float -> Float .
+  eq $avgQueryDuration((idFloatEntry(ID, F), IF), (idFloatEntry(ID, F'), IF'), F'', NUM)
+    = $avgQueryDuration(IF, IF', F'' + (F' - F), NUM + 1.0) .
+  eq $avgQueryDuration(IF, IF', F'', NUM) = F'' / NUM [owise] . --- No matching entries left
+
+endm

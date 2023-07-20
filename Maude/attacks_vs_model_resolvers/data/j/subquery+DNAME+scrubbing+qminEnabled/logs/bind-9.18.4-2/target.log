@@ -1,0 +1,2 @@
+12-Jan-2023 14:26:52.846 info: client @0x7f6db4014218 172.20.0.15#46550 (sub.a1.target.com): query: sub.a1.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 14:26:52.846 info: client @0x7f6de4005748 172.20.0.15#48447 (sub.a2.target.com): query: sub.a2.target.com IN A -E(0)DCK (172.20.0.5)

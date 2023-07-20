@@ -1,0 +1,333 @@
+load ../../src/common/label_graph
+
+mod LABEL-GRAPH-TEST is
+  inc LABEL-GRAPH .
+
+  ops zoneTTL : -> Float .
+  eq zoneTTL = 1.0 .
+
+  ops cAddr rAddr addrNS2 addrNScom : -> Address .
+
+  --- example zone files
+  ops dbCom dbNS1 dbNS2 : -> List{Record} .
+
+  eq dbCom =
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns1 . 'fnni . 'com . root >  --- (a)
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns2 . 'fnni . 'net . root >  --- (b)
+    < 'ns1 . 'fnni . 'com . root, a, zoneTTL, 216 . 205 . 207 . 204 >      --- (c)
+    .
+
+  eq dbNS1 =
+    --- < 'www . 'bankcard . 'com . root, aaaa, zoneTTL, 1 >                    --- (g)
+    < 'www . 'bankcard . 'com . root, a, zoneTTL, 204 . 58 . 233 . 75 >       --- (h)
+    < 'email . 'bankcard . 'com . root, a, zoneTTL, 66 . 161 . 21 . 26 >      --- (i)
+    < wildcard . 'bankcard . 'com . root, a, zoneTTL, 204 . 58 . 233 . 244 >  --- (j)
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns1 . 'fnni . 'com . root >    --- (d)
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns2 . 'fnni . 'net . root >    --- (e)
+    < 'mybankcard . 'com . root, dname, zoneTTL, 'bankcard . 'com . root >  --- (f)
+    .
+
+  eq dbNS2 =
+    --- < 'www . 'bankcard . 'com . root, aaaa, zoneTTL, 1 >                    --- (n)
+    < 'www . 'bankcard . 'com . root, a, zoneTTL, 204 . 58 . 233 . 75 >       --- (o)
+    < 'email . 'bankcard . 'com . root, a, zoneTTL, 66 . 161 . 21 . 26 >      --- (p)
+    < wildcard . 'bankcard . 'com . root, cname, zoneTTL, 'www . 'bankcard . 'com . root >  --- (q)
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns1 . 'fnni . 'com . root >    --- (k)
+    < 'mybankcard . 'com . root, ns, zoneTTL, 'ns2 . 'fnni . 'net . root >    --- (l)
+    < 'mybankcard . 'com . root, dname, zoneTTL, 'bankcard . 'com . root >  --- (m)
+    .
+
+
+  --- example trees
+  op grootTreeWithoutDNAME : -> LabelTree .
+  eq grootTreeWithoutDNAME =
+        root [
+          'com [
+                  ('bankcard [
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{nullName}) :
+                                (wildcard [ emptyLF ]{nullName})
+                            ]{nullName}) :
+                  ('mybankcard [ emptyLF ]{nullName}) :
+                  ('fnni [
+                          ('ns1 [ emptyLF ]{nullName})
+                        ]{nullName})
+                ]{nullName}
+        ]{nullName} .
+
+  op grootTree : -> LabelTree .
+  eq grootTree =
+        root [
+          'com [
+                  ('bankcard [
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{nullName}) :
+                                (wildcard [ emptyLF ]{nullName})
+                            ]{nullName}) :
+                  ('mybankcard [ emptyLF ]{'bankcard . 'com . root}) :
+                  ('fnni [
+                          ('ns1 [ emptyLF ]{nullName})
+                        ]{nullName})
+                ]{nullName}
+        ]{nullName} .
+
+  op grootTreeBoundedLoop : -> LabelTree .
+  eq grootTreeBoundedLoop =
+        root [
+          'com [
+                  ('bankcard [
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{'mybankcard . 'com . root}) :
+                                (wildcard [ emptyLF ]{nullName})
+                            ]{nullName}) :
+                  ('mybankcard [ emptyLF ]{'bankcard . 'com . root}) :
+                  ('fnni [
+                          ('ns1 [ emptyLF ]{nullName})
+                        ]{nullName})
+                ]{nullName}
+        ]{nullName} .
+
+  op grootTreeInfiniteLoop : -> LabelTree .
+  eq grootTreeInfiniteLoop =
+        root [
+          'com [
+                  ('bankcard [ 
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{nullName}) :
+                                (wildcard [ emptyLF ]{nullName})
+                             ]{'mybankcard . 'com . root}) :
+                  ('mybankcard [ emptyLF ]{'bankcard . 'com . root}) :
+                  ('fnni [
+                          ('ns1 [ emptyLF ]{nullName})
+                        ]{nullName})
+                ]{nullName}
+        ]{nullName} .
+
+  op treeTripleInfiniteLoop : -> LabelTree .
+  eq treeTripleInfiniteLoop =
+        root [
+          'com [
+                  ('bankcard [ 
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{nullName}) :
+                                (wildcard [ emptyLF ]{nullName})
+                             ]{'mybankcard . 'com . root}) :
+                  ('mybankcard [ emptyLF ]{'fnni . 'com . root}) :
+                  ('fnni [ emptyLF ]{'bankcard . 'com . root})
+                ]{nullName}
+        ]{nullName} .
+
+  op treeSpecialInfiniteLoop : -> LabelTree .
+  eq treeSpecialInfiniteLoop =
+        root [
+          'com [
+                  ('bankcard [ 
+                                ('www [ emptyLF ]{nullName}) :
+                                ('email [ emptyLF ]{nullName}) :
+                                (wildcard [ emptyLF ]{nullName})
+                             ]{'mybankcard . 'com . root}) :
+                  ('mybankcard [ emptyLF ]{'fnni . 'com . root}) :
+                  ('fnni [ emptyLF ]{'mybankcard . 'com . root})
+                ]{nullName}
+        ]{nullName} .
+
+endm
+
+--- enumerateSymbolicSuffixes unit tests
+red enumerateSymbolicSuffixes(root, 1) == label(1) . root .
+red enumerateSymbolicSuffixes(root, 2)
+  == label(2) . root
+     label(1) . label(2) . root .
+
+--- findSubtree unit tests
+red findSubtree('www . 'example . 'com . root, root['com['example['www[emptyLF]{nullName}]{nullName}]{nullName}]{nullName})
+  == 'www[emptyLF]{nullName} .
+red findSubtree(root, root['com['example['www[emptyLF]{nullName}]{nullName}]{nullName}]{nullName})
+  == root['com['example['www[emptyLF]{nullName}]{nullName}]{nullName}]{nullName} .
+red findSubtree('bankcard . 'com . root, grootTree)
+  == ('bankcard [
+                    ('www [ emptyLF ]{nullName}) :
+                    ('email [ emptyLF ]{nullName}) :
+                    (wildcard [ emptyLF ]{nullName})
+                ]{nullName}) .
+red findSubtree('nxdomain . 'bankcard . 'com . root, grootTree) == emptyLF .
+
+--- enumeratePaths unit tests
+red enumeratePaths(grootTreeWithoutDNAME, 1)
+  == root
+     'com . root
+     'bankcard . 'com . root
+     'www . 'bankcard . 'com . root
+     label(1) . 'www . 'bankcard . 'com . root
+     'email . 'bankcard . 'com . root
+     label(1) . 'email . 'bankcard . 'com . root
+     wildcard . 'bankcard . 'com . root
+     label(1) . wildcard . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     'fnni . 'com . root
+     'ns1 . 'fnni . 'com . root
+     label(1) . 'ns1 . 'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'com . root
+     label(1) . root .
+
+red enumeratePaths(grootTree, 1)
+  == root
+     'com . root
+     'bankcard . 'com . root
+     'www . 'bankcard . 'com . root
+     label(1) . 'www . 'bankcard . 'com . root
+     'email . 'bankcard . 'com . root
+     label(1) . 'email . 'bankcard . 'com . root
+     wildcard . 'bankcard . 'com . root
+     label(1) . wildcard . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'mybankcard . 'com . root
+     'www . 'mybankcard . 'com . root
+     label(1) . 'www . 'mybankcard . 'com . root
+     'email . 'mybankcard . 'com . root
+     label(1) . 'email . 'mybankcard . 'com . root
+     wildcard . 'mybankcard . 'com . root
+     label(1) . wildcard . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     'fnni . 'com . root
+     'ns1 . 'fnni . 'com . root
+     label(1) . 'ns1 . 'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'com . root
+     label(1) . root .
+
+red enumeratePaths(treeTripleInfiniteLoop, 1)
+  == root
+     'com . root
+     'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'www . 'bankcard . 'com . root
+     label(1) . 'www . 'bankcard . 'com . root
+     'email . 'bankcard . 'com . root
+     label(1) . 'email . 'bankcard . 'com . root
+     wildcard . 'bankcard . 'com . root
+     label(1) . wildcard . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'mybankcard . 'com . root
+     'www . 'mybankcard . 'com . root
+     label(1) . 'www . 'mybankcard . 'com . root
+     'email . 'mybankcard . 'com . root
+     label(1) . 'email . 'mybankcard . 'com . root
+     wildcard . 'mybankcard . 'com . root
+     label(1) . wildcard . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     'www . 'fnni . 'com . root
+     label(1) . 'www . 'fnni . 'com . root
+     'email . 'fnni . 'com . root
+     label(1) . 'email . 'fnni . 'com . root
+     wildcard . 'fnni . 'com . root
+     label(1) . wildcard . 'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'com . root
+     label(1) . root .
+
+red enumeratePaths(treeSpecialInfiniteLoop, 1)
+  == root
+     'com . root
+     'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'www . 'bankcard . 'com . root
+     label(1) . 'www . 'bankcard . 'com . root
+     'email . 'bankcard . 'com . root
+     label(1) . 'email . 'bankcard . 'com . root
+     wildcard . 'bankcard . 'com . root
+     label(1) . wildcard . 'bankcard . 'com . root
+     label(1) . 'bankcard . 'com . root
+     'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     label(1) . 'mybankcard . 'com . root
+     'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'fnni . 'com . root
+     label(1) . 'com . root
+     label(1) . root .
+
+--- insertName unit tests
+red insertName('www . 'example . 'com . root, emptyLF)
+  == root['com['example['www[emptyLF]{nullName}]{nullName}]{nullName}]{nullName} .
+red insertName('example . 'net . root, insertName('www . 'example . 'com . root, emptyLF))
+  == root[('com['example['www[emptyLF]{nullName}]{nullName}]{nullName}) :
+     'net['example[emptyLF]{nullName}]{nullName}]{nullName} .
+red insertName('abc . 'example . 'com . root,
+      insertName('example . 'net . root, insertName('www . 'example . 'com . root, emptyLF)))
+  == root[('com['example[('www[emptyLF]{nullName}) : 'abc[emptyLF]{nullName}]{nullName}]{nullName}) :
+     'net['example[emptyLF]{nullName}]{nullName}]{nullName} .
+
+--- insertDNAME unit tests
+red insertDNAME('mybankcard . 'com . root, 'bankcard . 'com . root, grootTreeWithoutDNAME)
+  == grootTree .
+red insertDNAME('mybankcard . 'com . root, 'bankcard . 'com . root, emptyLF)
+  == root['com['mybankcard[emptyLF]{'bankcard . 'com . root}]{nullName}]{nullName} .
+
+--- insertRecord unit tests
+red insertRecord(< 'www . 'example . 'com . root, a, zoneTTL, nullAddr >, emptyLF)
+  == root['com['example['www[emptyLF]{nullName}]{nullName}]{nullName}]{nullName} .
+red insertRecord(< 'example . 'net . root, a, zoneTTL, nullAddr >,
+      insertRecord(< 'www . 'example . 'com . root, a, zoneTTL, nullAddr >, emptyLF))
+  == root[('com['example['www[emptyLF]{nullName}]{nullName}]{nullName}) :
+     'net['example[emptyLF]{nullName}]{nullName}]{nullName} .
+red insertRecord(< 'abc . 'example . 'com . root, a, zoneTTL, nullAddr >,
+      insertRecord(< 'example . 'net . root, a, zoneTTL, nullAddr >,
+        insertRecord(< 'www . 'example . 'com . root, a, zoneTTL, nullAddr >, emptyLF)))
+  == root[('com['example[('www[emptyLF]{nullName}) : 'abc[emptyLF]{nullName}]{nullName}]{nullName}) :
+     'net['example[emptyLF]{nullName}]{nullName}]{nullName} .
+red insertRecord(< 'mybankcard . 'com . root, dname, zoneTTL, 'bankcard . 'com . root >, grootTreeWithoutDNAME)
+  == grootTree .
+red insertRecord(< 'mybankcard . 'com . root, dname, zoneTTL, 'bankcard . 'com . root >, emptyLF)
+  == root['com['mybankcard[emptyLF]{'bankcard . 'com . root}]{nullName}]{nullName} .
+
+--- labelGraphFromConfig unit tests
+red labelGraphFromConfig(
+    < cAddr : Client | resolver: rAddr >
+    < rAddr : Resolver | cache: nilCache >
+    < 216 . 205 . 207 . 204 : Nameserver | db: dbNS1 >
+    < addrNS2 : Nameserver | db: dbNS2 >
+    < addrNScom : Nameserver | db: dbCom >)
+  == grootTree .
+
+--- nameIsInSet unit tests
+red nameIsInSet(
+    'email . 'bankcard . 'com . root,
+    'www . 'bankcard . 'com . root ;;;
+    'email . 'bankcard . 'com . root ;;;
+    wildcard . 'bankcard . 'com . root
+  ) == true .
+
+red nameIsInSet(
+    'notinset . 'bankcard . 'com . root,
+    'www . 'bankcard . 'com . root ;;;
+    'email . 'bankcard . 'com . root ;;;
+    wildcard . 'bankcard . 'com . root
+  ) == false .
+
+--- nameSetFromList unit tests
+red nameSetFromList(
+    'www . 'bankcard . 'com . root
+    'email . 'bankcard . 'com . root
+    wildcard . 'bankcard . 'com . root
+    'mybankcard . 'com . root
+    'mybankcard . 'com . root
+    'www . 'bankcard . 'com . root
+    wildcard . 'bankcard . 'com . root
+) ==
+    'www . 'bankcard . 'com . root ;;;
+    'email . 'bankcard . 'com . root ;;;
+    wildcard . 'bankcard . 'com . root ;;;
+    'mybankcard . 'com . root .
+

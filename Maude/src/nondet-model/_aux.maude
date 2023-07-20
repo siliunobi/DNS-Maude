@@ -1,0 +1,58 @@
+load ../common/_aux
+
+mod AUX is 
+  inc AUX-COMMON .
+  inc ADDRESS . --- protecting import is violated
+
+  vars NAME QNAME SNAME SNAME_FULL : Name .
+  var QTYPE : RType .
+  vars RS ANS : List{Record} .
+  vars ADDR ADDR' : Address .
+  var NA : Map{Name, Address} .
+  var ZS : ZoneState .
+  vars ID ID' : Id .
+  var QSTATE : QueryState .
+  var QSS : QueryStateSet .
+  var QMIN_STATE : QMinState .
+  vars N N' : Nat .
+  vars B : Bool .
+
+  --- Sends the queries in the given QueryStateSet to a name server whose address is known.
+  ---   Note that all queries in the QueryStateSet should have at least one known name server address.
+  ---   Returns a Config consisting of Msgs.
+  --- Args: queries to be sent, resolver address
+  op sendQueries : QueryStateSet Address -> Config .
+  ceq sendQueries((QSTATE ;; QSS), ADDR)
+    = (to pickAddrNonDet(filterKnownAddr(NA)) from ADDR :
+        query(ID', SNAME, if B then QTYPE else qminQTYPE fi))
+      sendQueries(QSS, ADDR)
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', qminState(SNAME_FULL, N, N', B), ANS, < NAME NA >) := QSTATE .
+  eq sendQueries(eptQSS, ADDR) = null .
+
+  --- Sends SERVFAIL responses to clients for all queries in the given QueryStateSet.
+  ---   Returns a Config consisting of Msgs.
+  --- Args: queries, resolver address
+  op sendFailureResponses : QueryStateSet Address -> Config .
+  ceq sendFailureResponses((QSTATE ;; QSS), ADDR)
+    = if ADDR' == ADDR
+        then sendFailureResponses(QSS, ADDR) --- don't send failure responses to the resolver itself
+        else (to ADDR' from ADDR : response(ID, QNAME, nil, nil, nil, 2)) sendFailureResponses(QSS, ADDR)
+      fi
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', QMIN_STATE, ANS, ZS) := QSTATE .
+  eq sendFailureResponses(eptQSS, ADDR) = null .
+
+  --- Filters the map such that only entries with a non-null address are retained.
+  op filterKnownAddr : Map{Name, Address} -> Map{Name, Address} .
+  eq filterKnownAddr((NAME |-> ADDR, NA))
+    = if ADDR =/= nullAddr
+        then (NAME |-> ADDR, filterKnownAddr(NA))
+        else filterKnownAddr(NA)
+      fi .
+  eq filterKnownAddr(empty) = empty .
+
+  --- Picks an address from the map non-deterministically.
+  op pickAddrNonDet : Map{Name, Address} -> [Address] .
+  rl [pick-addr] : pickAddrNonDet((NAME |-> ADDR, NA)) => ADDR .
+  rl [pick-addr-null] : pickAddrNonDet(empty) => nullAddr .
+
+endm

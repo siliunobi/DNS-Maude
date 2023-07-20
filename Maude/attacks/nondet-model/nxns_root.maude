@@ -1,0 +1,167 @@
+load ../../src/nondet-model/dns
+load ../../src/nondet-model/properties
+
+--- This is variant (c) of the NXNS attack, i.e., the victim are the root servers.
+
+mod TEST is
+  inc DNS + PROPERTIES .
+
+  --- uncomment to enable MaxFetch(1) mitigation
+  --- eq maxFetch? = true .
+  eq maxFetchParam = 1 .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >, 1)
+    cacheEntry(< 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker >, 1) .
+
+  ops addrRoot addrNScom addrNSattacker : -> Address .
+
+  ops zoneRoot zoneCom zoneAttacker : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker > . --- glue
+
+  eq zoneAttacker =
+    --- authoritative data
+    < 'attacker . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker >
+
+    --- First-level delegations to attacker's own name server, illustrated using 5 NS records.
+    --- In practice (BIND), the max number is limited by the max-recursion-queries parameter.
+    --- The paper determined 37 to be the best number (74 if only considering IPv4)
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL, 'ns1 . 'sd1 . 'attacker . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL, 'ns1 . 'sd2 . 'attacker . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL, 'ns1 . 'sd3 . 'attacker . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL, 'ns1 . 'sd4 . 'attacker . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL, 'ns1 . 'sd5 . 'attacker . 'com . root >
+
+    --- Second-level fake delegations, illustrated using 10 NS records for each subdomain.
+    --- In practice (BIND), the max number is limited by how many records fit into the response.
+    --- The paper determined 135 to be the best number.
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1a . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1b . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1c . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1d . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1e . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1f . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1g . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1h . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1i . root >
+    < 'sd1 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake1j . root >
+
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2a . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2b . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2c . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2d . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2e . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2f . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2g . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2h . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2i . root >
+    < 'sd2 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake2j . root >
+
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3a . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3b . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3c . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3d . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3e . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3f . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3g . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3h . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3i . root >
+    < 'sd3 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake3j . root >
+
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4a . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4b . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4c . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4d . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4e . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4f . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4g . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4h . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4i . root >
+    < 'sd4 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake4j . root >
+
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5a . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5b . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5c . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5d . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5e . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5f . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5g . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5h . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5i . root >
+    < 'sd5 . 'attacker . 'com . root, ns, testTTL, 'ns . 'fake5j . root > .
+
+  op initConfig : -> Config .
+  eq initConfig =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache,  --- assuming the attacker.com name servers are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- attacker's authoritative name server
+    < addrNSattacker : Nameserver | db: zoneAttacker, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew numActorMsgsRecvdTerminal(addrRoot, initConfig) .
+rew numActorMsgsSentTerminal(cAddr ; addrNSattacker, initConfig) .
+rew msgAmpFactorTerminal(cAddr ; addrNSattacker, addrRoot, initConfig) .

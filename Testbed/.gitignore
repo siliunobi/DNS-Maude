@@ -1,0 +1,9 @@
+playground/**
+go.sum
+.idea/**
+**.log
+.ipynb_checkpoints/**
+.ipynb_checkpoints/
+build/**
+config/*.yaml
+*.ipynb

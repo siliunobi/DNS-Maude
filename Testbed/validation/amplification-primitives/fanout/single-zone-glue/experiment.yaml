@@ -1,0 +1,7 @@
+name: "fanout-single-zone-glue"
+target: "target-com"
+measure: "volume"
+queries:
+  - zone: "trigger.target.com."
+    record: "A"
+qmin: false

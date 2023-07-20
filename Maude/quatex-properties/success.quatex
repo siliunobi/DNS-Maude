@@ -1,0 +1,2 @@
+successRatio( ) = { s.rval(0) } ;
+eval E[ # successRatio( ) ] ;

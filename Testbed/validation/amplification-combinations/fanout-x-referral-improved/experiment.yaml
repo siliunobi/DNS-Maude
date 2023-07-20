@@ -1,0 +1,9 @@
+name: "fanout-x-referral-improved"
+zonesDir: validation/amplification-combinations/fanout-x-referral-improved/zones
+target: "target"
+measure: "volume"
+queries:
+  - zone: "q.a.com"
+    record: "A"
+qmin: false
+testbed: validation/amplification-combinations/fanout-x-referral-improved/testbed.yaml

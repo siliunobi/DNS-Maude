@@ -1,0 +1,6 @@
+12-Jan-2023 02:20:22.930 info: client @0x7f968826ce78 172.20.0.14#53292 (del.inter.net): query: del.inter.net IN A -E(0) (172.20.0.6)
+12-Jan-2023 02:20:22.940 info: client @0x7f965400d578 172.20.0.14#52539 (b1.inter.net): query: b1.inter.net IN A -E(0) (172.20.0.6)
+12-Jan-2023 02:20:22.940 info: client @0x7f965400d578 172.20.0.14#53162 (d1.inter.net): query: d1.inter.net IN A -E(0) (172.20.0.6)
+12-Jan-2023 02:20:22.940 info: client @0x7f967800b278 172.20.0.14#18646 (f1.inter.net): query: f1.inter.net IN A -E(0) (172.20.0.6)
+12-Jan-2023 02:20:22.940 info: client @0x7f9660040e78 172.20.0.14#12572 (h1.inter.net): query: h1.inter.net IN A -E(0) (172.20.0.6)
+12-Jan-2023 02:20:22.940 info: client @0x7f967c00ad18 172.20.0.14#11216 (j1.inter.net): query: j1.inter.net IN A -E(0) (172.20.0.6)

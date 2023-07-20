@@ -1,0 +1,260 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+load ../../attacker-models/common/attacker
+
+--- This is the initial configuration corresponding to the scenario from attack validation on real
+--- implementations for the "Subqueries" attack using CNAME chain validation together
+--- with QMIN. 10 delegations, 09 cname chain length, and 10 labels
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER-COMMON .
+
+  eq rsvTimeout? = false .
+  eq rsvTimeout = 1000.0 .
+
+  --- eq maxFetch? = true .
+  eq maxFetchParam = 6 .
+  eq configWorkBudget = 5000 .
+
+  --- enable CNAME validation
+  eq rsvMinCacheCredClient = 5 .
+  eq rsvMinCacheCredResolver = 5 .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'del . 'intermediary . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+  ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+  ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS > --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    --- unchainedQminRecordsTarget('target-ans . 'com . root, 'del . 'intermediary . 'com . root, 20, 0, 11, testTTL)
+    < 'z1 . 'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a0 .  'target-ans . 'com . root >
+    < 'z2 . 'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a10 .  'target-ans . 'com . root >
+    < 'z3 . 'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a20 .  'target-ans . 'com . root >
+    < 'z4 . 'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a30 .  'target-ans . 'com . root >
+    < 'z5 . 'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a40 .  'target-ans . 'com . root >
+    < 'z6 . 'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a50 .  'target-ans . 'com . root >
+    < 'z7 . 'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a60 .  'target-ans . 'com . root >
+    < 'z8 . 'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a70 .  'target-ans . 'com . root >
+    < 'z9 . 'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a80 .  'target-ans . 'com . root >
+    < 'z10 . 'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a90 .  'target-ans . 'com . root >
+
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a0 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a1 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a1 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a2 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a2 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a3 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a3 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a4 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a4 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a5 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a5 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a6 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a6 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a7 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a7 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a8 .  'target-ans . 'com . root >
+    < 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a8 .  'target-ans . 'com . root, cname, testTTL, 'a0 . 'b0 . 'c0 . 'd0 . 'e0 . 'f0 . 'g0 . 'h0 . 'i0 . 'a9 .  'target-ans . 'com . root >
+
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a10 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a11 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a11 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a12 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a12 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a13 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a13 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a14 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a14 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a15 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a15 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a16 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a16 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a17 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a17 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a18 .  'target-ans . 'com . root >
+    < 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a18 .  'target-ans . 'com . root, cname, testTTL, 'a1 . 'b1 . 'c1 . 'd1 . 'e1 . 'f1 . 'g1 . 'h1 . 'i1 . 'a19 .  'target-ans . 'com . root >
+
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a20 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a21 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a21 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a22 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a22 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a23 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a23 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a24 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a24 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a25 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a25 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a26 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a26 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a27 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a27 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a28 .  'target-ans . 'com . root >
+    < 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a28 .  'target-ans . 'com . root, cname, testTTL, 'a2 . 'b2 . 'c2 . 'd2 . 'e2 . 'f2 . 'g2 . 'h2 . 'i2 . 'a29 .  'target-ans . 'com . root >
+
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a30 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a31 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a31 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a32 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a32 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a33 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a33 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a34 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a34 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a35 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a35 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a36 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a36 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a37 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a37 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a38 .  'target-ans . 'com . root >
+    < 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a38 .  'target-ans . 'com . root, cname, testTTL, 'a3 . 'b3 . 'c3 . 'd3 . 'e3 . 'f3 . 'g3 . 'h3 . 'i3 . 'a39 .  'target-ans . 'com . root >
+
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a40 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a41 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a41 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a42 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a42 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a43 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a43 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a44 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a44 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a45 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a45 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a46 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a46 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a47 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a47 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a48 .  'target-ans . 'com . root >
+    < 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a48 .  'target-ans . 'com . root, cname, testTTL, 'a4 . 'b4 . 'c4 . 'd4 . 'e4 . 'f4 . 'g4 . 'h4 . 'i4 . 'a49 .  'target-ans . 'com . root >
+
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a50 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a51 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a51 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a52 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a52 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a53 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a53 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a54 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a54 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a55 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a55 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a56 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a56 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a57 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a57 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a58 .  'target-ans . 'com . root >
+    < 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a58 .  'target-ans . 'com . root, cname, testTTL, 'a5 . 'b5 . 'c5 . 'd5 . 'e5 . 'f5 . 'g5 . 'h5 . 'i5 . 'a59 .  'target-ans . 'com . root >
+
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a60 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a61 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a61 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a62 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a62 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a63 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a63 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a64 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a64 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a65 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a65 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a66 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a66 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a67 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a67 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a68 .  'target-ans . 'com . root >
+    < 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a68 .  'target-ans . 'com . root, cname, testTTL, 'a6 . 'b6 . 'c6 . 'd6 . 'e6 . 'f6 . 'g6 . 'h6 . 'i6 . 'a69 .  'target-ans . 'com . root >
+
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a70 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a71 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a71 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a72 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a72 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a73 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a73 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a74 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a74 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a75 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a75 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a76 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a76 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a77 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a77 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a78 .  'target-ans . 'com . root >
+    < 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a78 .  'target-ans . 'com . root, cname, testTTL, 'a7 . 'b7 . 'c7 . 'd7 . 'e7 . 'f7 . 'g7 . 'h7 . 'i7 . 'a79 .  'target-ans . 'com . root >
+
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a80 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a81 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a81 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a82 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a82 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a83 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a83 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a84 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a84 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a85 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a85 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a86 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a86 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a87 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a87 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a88 .  'target-ans . 'com . root >
+    < 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a88 .  'target-ans . 'com . root, cname, testTTL, 'a8 . 'b8 . 'c8 . 'd8 . 'e8 . 'f8 . 'g8 . 'h8 . 'i8 . 'a89 .  'target-ans . 'com . root >
+
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a90 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a91 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a91 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a92 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a92 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a93 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a93 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a94 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a94 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a95 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a95 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a96 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a96 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a97 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a97 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a98 .  'target-ans . 'com . root >
+    < 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a98 .  'target-ans . 'com . root, cname, testTTL, 'a9 . 'b9 . 'c9 . 'd9 . 'e9 . 'f9 . 'g9 . 'h9 . 'i9 . 'a99 .  'target-ans . 'com . root >
+
+         .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+    --- malicious delegation
+    --- unchainedQminRecordsIntermediary('target-ans . 'com . root, 'del . 'intermediary . 'com . root, 20, 0, 11, testTTL)
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z1 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z2 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z3 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z4 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z5 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z6 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z7 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z8 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z9 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'z10 . 'target-ans . 'com . root >
+    .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the name servers of target-ans.com and intermediary.com are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- target-ans.com authoritative name server
+    < addrNStargetANS : Nameserver | db: zoneTargetANS, queue: nilQueue >
+    --- intermediary.com authoritative name server
+    < addrNSintermediary : Nameserver | db: zoneIntermediary, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+
+rew msgAmpFactor(cAddr, addrNStargetANS ; addrNSintermediary ; addrNScom, initConfig) .
+rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .
+rew msgAmpFactor(cAddr, addrNSintermediary, initConfig) .
+
+--- it should be 1
+rew msgAmpFactor(cAddr ; addrNStargetANS ; addrNSintermediary ; addrNScom, rAddr, initConfig) .
+rew msgAmpFactor(cAddr, rAddr, initConfig) .
+
+rew numActorMsgsSent(rAddr, initConfig) .

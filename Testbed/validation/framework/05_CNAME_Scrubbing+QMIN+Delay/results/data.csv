@@ -1,0 +1,25 @@
+resolver,zone,delay,result,query
+resolver-powerdns-4.7,target-com.zone,0,323,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,200,6972,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,400,6930,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,600,6675,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,800,6437,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,1000,6034,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,1200,6039,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-powerdns-4.7,target-com.zone,1400,5606,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,0,283,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,200,18186,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,400,34561,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,600,51028,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,800,68213,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,1000,84707,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,1200,101613,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-bind-9.18.4,target-com.zone,1400,9382,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,0,609,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,200,37425,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,400,73775,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,600,109480,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,800,145967,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,1000,181475,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,1200,220049,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT
+resolver-unbound-1.16.0,target-com.zone,1400,256278,12.11.10.9.8.7.6.5.4.3.2.CH1.target.com. TXT

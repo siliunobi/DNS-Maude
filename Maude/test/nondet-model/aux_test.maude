@@ -1,0 +1,62 @@
+load ../../src/nondet-model/aux
+
+--- some constants
+mod TEST is
+  inc AUX .
+
+  op addr : -> Address .
+  op qmin : -> QMinState .
+
+endm
+
+--- sendQueries unit tests
+red sendQueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ), addr)
+  == (to pickAddrNonDet(filterKnownAddr(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)))
+      from addr : query(1 .. ref, 'www . 'example . 'com . root, a)) .
+
+red sendQueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, false), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ), addr)
+  == (to pickAddrNonDet(filterKnownAddr(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)))
+      from addr : query(1 .. ref, 'www . 'example . 'com . root, qminQTYPE)) .
+
+red sendQueries(
+    (queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 2 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )),
+    addr)
+  == (to pickAddrNonDet(filterKnownAddr(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)))
+      from addr : query(1 .. ref, 'www . 'example . 'com . root, a))
+     (to pickAddrNonDet(('ns2 . 'com . root |-> 100 . 0 . 0 . 2)) from addr : query(2 .. ref, 'www . 'example . 'com . root, a)) .
+
+--- sendFailureResponses unit tests
+red sendFailureResponses(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty > ), addr)
+  == (to 1 . 2 . 3 . 4 from addr : response(1, 'www . 'example . 'com . root, nil, nil, nil, 2)) .
+
+red sendFailureResponses(
+    (queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty >) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty > )),
+    addr)
+  == (to 1 . 2 . 3 . 4 from addr : response(1, 'www . 'example . 'com . root, nil, nil, nil, 2))
+     (to 1 . 2 . 3 . 4 from addr : response(2, 'www . 'example . 'com . root, nil, nil, nil, 2)) .
+
+--- filterKnownAddr unit tests
+red filterKnownAddr(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2))
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+
+red filterKnownAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2))
+  == ('ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+
+red filterKnownAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr))
+  == empty .

@@ -1,0 +1,47 @@
+$TTL 3600
+@                       IN      SOA     server.2.1.q.a.com. username.2.1.q.a.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.2.1.q.a.com.
+ns.2.1.q.a.com.       IN      A       172.20.0.8
+
+
+3.2.1.q.a.com.    IN  NS  n4n1.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n2.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n3.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n4.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n5.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n6.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n7.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n8.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n9.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n10.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n11.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n12.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n13.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n14.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n15.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n16.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n17.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n18.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n19.b.com.
+
+3.2.1.q.a.com.    IN  NS  n4n20.b.com.
+
+

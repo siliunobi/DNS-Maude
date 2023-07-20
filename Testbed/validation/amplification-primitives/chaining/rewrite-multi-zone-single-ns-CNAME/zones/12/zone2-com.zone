@@ -1,0 +1,9 @@
+$TTL 0
+@                       IN      SOA     server.zone2. username.zone2.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.zone2.com.
+                        IN      A       1.2.3.4
+ns.zone2.com.         IN      A       172.20.0.5
+www.zone2.com.        IN      CNAME   zone2.com.
+
+; referral chain
+chain.zone2.com.        IN      CNAME      chain.zone3.com.

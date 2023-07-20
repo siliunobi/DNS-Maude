@@ -1,0 +1,170 @@
+load ../../../../../src/probabilistic-model/dns
+load ../../../../../src/probabilistic-model/sampler
+load ../../../../../src/probabilistic-model/properties
+        
+load ../../../../../attacker-models/probabilistic-model/attacker
+load ../../../../../test/probabilistic-model/test_helpers
+--- Created automatically with Python.
+--- This file simulates the Subqueries+Cname chain validation +delay (slow) attack. It consists
+--- of attacker client which queries the first element of each Cname chains contained into then
+--- target namwserver. The attacker managed to install some records in
+--- this victim nameserver, which trigger a long CNAME chain between the nameserver and
+--- the resolver. This is using the CNAME chain validation.
+--- Attacker: client ; Victim : nameserver
+        
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER + TEST-HELPERS .
+
+
+  ---eq configTsuNAMEslistCircDep = true .
+  --- eq rsvTimeout? = true .
+  --- eq rsvTimeout = 100.0 .
+  ---eq dropMsgsForNXActors? = true .
+  ---eq rsvTimeout? = false .
+  ---eq rsvTimeout = 1000.0 .
+
+  --- nameserver delay
+  op testNsDelay : -> Float .
+  eq testNsDelay =  1400.0 . 
+op q : -> Query .
+eq q = query(1, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a . 'target-ans . 'com . root, a) .
+
+	---  maximum subqueries
+	eq maxFetch? = true .
+	eq maxFetchParam = 9 .
+
+	eq configWorkBudget = 100 .
+
+	--- enable CNAME validation 
+	eq rsvMinCacheCredClient = 5 . 
+	eq rsvMinCacheCredResolver = 5 .
+
+	--- enable overall timeout 
+	eq rsvOverallTimeout? = true . 
+	eq rsvOverallTimeout = 6000.0 . 
+
+
+                 
+--- Activate QMIN
+eq maxMinimiseCount = 10 .
+
+    op testTTL : -> Float .
+    eq testTTL = 36000.0 .
+
+    ops mAddr cAddr rAddr : -> Address .
+
+    --- "SBELT": fallback if there are no known name servers
+    op sb : -> ZoneState .
+    eq sb = < root ('a  . 'root-servers . 'net . root |-> addrRoot) > .
+
+    ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+    op cache : -> Cache .
+    eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+
+    ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+
+    eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+    eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >  --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+        
+    eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'i0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'i0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'j0 . 'target-ans . 'com . root > 
+
+		< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'j0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'k0 . 'target-ans . 'com . root > 
+
+		 < 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'k0 . 'target-ans . 'com . root , a, testTTL, addrNScom > 
+
+
+    .
+        
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- target authoritative name server
+    < addrNStargetANS : DelayedNameserver | db: zoneTargetANS, nsDelay: testNsDelay, queue: nilQueue >
+    .
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+                
+    rew initConfig .
+    rew avgQueryDuration(initConfig) .
+    --- rew maxQueryDuration(initConfig) .
+    --- rew numActorMsgsRecvd(addrNStargetANS, initConfig) .
+                

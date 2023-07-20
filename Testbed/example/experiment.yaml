@@ -1,0 +1,21 @@
+name: "example-experiment"
+resolverIDs:
+  - "resolver-bind-9.18.4"
+  - "resolver-unbound-1.16.0"
+zonesDir: example/zones
+target: "target-com"
+measure: "volume"
+queries:
+  - zone: "a1.target.com."
+    record: "A"
+  - zone: "non-existing.target.com."
+    record: "A"
+qmin: false
+delay: [0, 100] # in ms
+delayedZones:
+  - "target-com"
+warmup:
+  - "target.com."
+dest: example/results
+saveLogs: true
+testbed: example/testbed.yaml

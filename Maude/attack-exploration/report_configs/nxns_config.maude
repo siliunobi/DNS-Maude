@@ -1,0 +1,135 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../test/probabilistic-model/test_helpers
+load ../../src/probabilistic-model/properties
+load ../../attacker-models/probabilistic-model/attacker
+--- This maude file has been created automatically from the Python representation.
+
+mod TEST is
+
+inc SAMPLER + APMAUDE + DNS + TEST-HELPERS + PROPERTIES + ATTACKER .
+
+eq monitorQueryLog? = true .
+
+eq configTsuNAMEslistCircDep = true .
+eq rsvTimeout? = true .
+eq rsvTimeout = 100.0 .
+eq dropMsgsForNXActors? = true .
+
+--- Actor addresses
+ops mAddr cAddr rAddr addrNSroot addrNScom addrNSnet addrNSexample addrNsAttacker1Com : -> Address .
+
+--- "SBELT": fallback if there are no known name servers
+op sb : -> ZoneState .
+eq sb = < root ('a . 'root-servers . 'net . root |-> addrNSroot) > .
+
+--- Zone files
+op zoneCom : -> List{Record} .
+eq zoneCom =
+  < 'com . root, soa, 3600.0, soaData(3600.0) >
+  < 'com . root, ns, 3600.0, 'ns . 'com . root >
+  < 'ns . 'com . root, a, 3600.0, addrNScom >
+  < 'example . 'com . root, ns, 3600.0, 'ns . 'example . 'com . root >
+  < 'ns . 'example . 'com . root, a, 3600.0, addrNSexample >
+  < 'attacker1 . 'com . root, ns, 3600.0, 'ns . 'attacker1 . 'com . root >
+  < 'ns . 'attacker1 . 'com . root, a, 3600.0, addrNsAttacker1Com > .
+
+op zoneAttacker1Com : -> List{Record} .
+eq zoneAttacker1Com =
+  < 'attacker1 . 'com . root, a, 3600.0, 1 . 2 . 3 . 4 >
+  < 'attacker1 . 'com . root, soa, 3600.0, soaData(3600.0) >
+  < 'attacker1 . 'com . root, ns, 3600.0, 'ns . 'attacker1 . 'com . root >
+
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain0-1 . 'example . 'com . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain1-1 . 'net . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain2-1 . 'ns . 'com . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain3-1 . 'example . 'com . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain4-1 . 'net . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain5-1 . 'www . 'example . 'com . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain6-1 . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain7-1 . 'a . 'root-servers . 'net . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain8-1 . 'a . 'root-servers . 'net . root >
+  < 'r . 'attacker1 . 'com . root, ns, 3600.0, 'nxdomain9-1 . 'com . root >
+  < 'aa . 'c . 'attacker1 . 'com . root, ns, 3600.0, root >
+  < 'aa . 'c . 'attacker1 . 'com . root, ns, 3600.0, 'a . 'root-servers . 'net . root >
+  < 'ss . 'c . 'attacker1 . 'com . root, dname, 3600.0, wildcard . 'example . 'com . root >
+  < 'qq . 'c . 'attacker1 . 'com . root, dname, 3600.0, 'net . root >
+
+  < 'ns . 'attacker1 . 'com . root, a, 3600.0, addrNsAttacker1Com > .
+
+op zoneNet : -> List{Record} .
+eq zoneNet =
+  < 'net . root, soa, 3600.0, soaData(3600.0) >
+  < 'net . root, ns, 3600.0, 'ns . 'net . root >
+  < 'ns . 'net . root, a, 3600.0, addrNSnet >
+  < 'root-servers . 'net . root, ns, 3600.0, 'a . 'root-servers . 'net . root >
+  < 'a . 'root-servers . 'net . root, a, 3600.0, addrNSroot > .
+
+op zone : -> List{Record} .
+eq zone =
+  < root, soa, 3600.0, soaData(3600.0) >
+  < root, ns, 3600.0, 'a . 'root-servers . 'net . root >
+  < 'a . 'root-servers . 'net . root, a, 3600.0, addrNSroot >
+  < 'com . root, ns, 3600.0, 'ns . 'com . root >
+  < 'ns . 'com . root, a, 3600.0, addrNScom >
+  < 'net . root, ns, 3600.0, 'ns . 'net . root >
+  < 'ns . 'net . root, a, 3600.0, addrNSnet > .
+
+op zoneRoot-serversNet : -> List{Record} .
+eq zoneRoot-serversNet =
+  < 'root-servers . 'net . root, soa, 3600.0, soaData(3600.0) >
+  < 'root-servers . 'net . root, ns, 3600.0, 'a . 'root-servers . 'net . root >
+  < 'a . 'root-servers . 'net . root, a, 3600.0, addrNSroot > .
+
+op zoneExampleCom : -> List{Record} .
+eq zoneExampleCom =
+  < 'example . 'com . root, soa, 3600.0, soaData(3600.0) >
+  < 'example . 'com . root, ns, 3600.0, 'ns . 'example . 'com . root >
+  < 'ns . 'example . 'com . root, a, 3600.0, addrNSexample >
+  < 'www . 'example . 'com . root, a, 3600.0, 1 . 2 . 3 . 4 >
+  < wildcard . 'example . 'com . root, txt, 3600.0, nullAddr > .
+
+--- Initial configuration
+op initConfig : -> Config .
+eq initConfig = run(initState, limit) .
+
+eq initState = { 0.0 | nil }
+  --- Start messages
+  [id, to cAddr : start, 0]
+  --- Monitor
+  initMonitor(mAddr)
+  --- Clients
+  < cAddr : Client |
+    queries: query(1, 'r . 'attacker1 . 'com . root, a),
+    resolver: rAddr,
+    notifyDone: nullAddr >
+  --- Resolvers
+  < rAddr : Resolver |
+    cache: nilCache,
+    nxdomainCache: nilNxdomainCache,
+    nodataCache: nilNodataCache,
+    sbelt: sb,
+    workBudget: emptyIN,
+    blockedQueries: eptQSS,
+    sentQueries: eptQSS >
+  --- Nameservers
+  < addrNSroot : Nameserver |
+    db: (zone zoneRoot-serversNet),
+    queue: nilQueue >
+  < addrNScom : Nameserver |
+    db: (zoneCom),
+    queue: nilQueue >
+  < addrNSnet : Nameserver |
+    db: (zoneNet),
+    queue: nilQueue >
+  < addrNSexample : Nameserver |
+    db: (zoneExampleCom),
+    queue: nilQueue >
+  < addrNsAttacker1Com : Nameserver |
+    db: (zoneAttacker1Com),
+    queue: nilQueue >
+  .
+
+endm
+
+rew msgAmpFactor(cAddr, rAddr, initConfig) .

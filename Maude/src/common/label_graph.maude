@@ -1,0 +1,224 @@
+load _aux
+
+mod LABEL-GRAPH is
+  inc AUX-COMMON .
+
+  sorts LabelTree LabelForest .
+  subsort LabelTree < LabelForest .
+
+  vars NAME NAME' NAME'' DNAME_TGT DNAME_TGT' : Name .
+  var NL : NameList .
+  var T : LabelTree .
+  vars F F' : LabelForest .
+  var R : Record .
+  var RS : List{Record} .
+  var RTYPE : RType .
+  var TTL : Float .
+  var RDATA : RData .
+  var C : Config .
+  vars ADDR ADDR' : Address .
+  var AS : AttributeSet .
+  var NS : NameSet .
+  var Q : Query .
+  var N : Nat .
+  var B : Bool .
+
+  --- node label, children, DNAME target (if present)
+  op _[_]{_} : Name LabelForest Name -> LabelTree [ctor] .
+  op emptyLF : -> LabelForest [ctor] .
+  op _:_ : LabelForest LabelForest -> LabelForest [ctor assoc id: emptyLF] .
+
+  op root : LabelTree -> Name .
+  op children : LabelTree -> LabelForest .
+  op dnameTgt : LabelTree -> Name .
+
+  eq root(NAME [F]{DNAME_TGT}) = NAME .
+  eq children(NAME [F]{DNAME_TGT}) = F .
+  eq dnameTgt(NAME [F]{DNAME_TGT}) = DNAME_TGT .
+
+  --- Enumerate names consisting of symbolic labels prepended to the given name.
+  --- Args: domain prefix, max number of symbolic labels
+  op enumerateSymbolicSuffixes : Name Nat -> NameList .
+  eq enumerateSymbolicSuffixes(NAME, s N)
+    = if nameLength(label(s N) . NAME) <= 255
+        then (label(s N) . NAME) enumerateSymbolicSuffixes(label(s N) . NAME, N)
+        else nilNL
+      fi .
+  eq enumerateSymbolicSuffixes(NAME, 0) = nilNL .
+
+  --- Returns the subtree corresponding to the given name, or emptyLF if the name does not exist in the tree.
+  op findSubtree : Name LabelForest -> LabelForest .
+  ceq findSubtree(NAME . NAME', (NAME'' [F]{DNAME_TGT}) : F')
+    = if NAME' == NAME''
+        then findSubtree(NAME, F)
+        else findSubtree(NAME . NAME', F')
+      fi
+    if isSingleLabel(NAME') .
+  ceq findSubtree(NAME', (NAME'' [F]{DNAME_TGT}) : F')
+    = if NAME' == NAME''
+        then (NAME'' [F]{DNAME_TGT})
+        else findSubtree(NAME', F')
+      fi
+    if isSingleLabel(NAME') .
+  eq findSubtree(NAME, emptyLF) = emptyLF .
+
+  --- Enumerate all names that appear in the graph, plus some non-existent "symbolic" ones.
+  ---   Note: The root node is assumed to not have a DNAME edge.
+  --- Args: label graph, max number of symbolic non-existent labels
+  op enumeratePaths : LabelTree Nat -> NameList .
+  eq enumeratePaths(NAME [F]{DNAME_TGT}, N) = NAME $enumeratePaths(NAME [F]{DNAME_TGT}, F, NAME, nilNL, N) .
+
+  --- Args:
+  ---  * original label graph,
+  ---  * current label graph,
+  ---  * current path prefix,
+  ---  * the sequence of nodes from which only DNAME edges have been followed (used to detect loops),
+  ---  * max number of symbolic non-existent labels
+  op $enumeratePaths : LabelTree LabelForest Name Name Nat -> NameList .
+  --- case 1: not reached via DNAME edge, no DNAME edge present
+  eq $enumeratePaths(T, (NAME [F]{nullName}) : F', NAME', nilNL, N)
+    = if nameLength(NAME . NAME') <= 255 --- max domain length not reached
+        then (NAME . NAME') $enumeratePaths(T, F, NAME . NAME', nilNL, N) $enumeratePaths(T, F', NAME', nilNL, N)
+        else $enumeratePaths(T, F', NAME', nilNL, N)
+      fi .
+  --- case 2: reached via DNAME edge, no DNAME edge present
+  eq $enumeratePaths(T, (NAME [F]{nullName}), NAME', NAME'' NL, N) = $enumeratePaths(T, F, NAME', nilNL, N) .
+  --- case 3: not reached via DNAME edge, no DNAME edge present
+  eq $enumeratePaths(T, (NAME [F]{DNAME_TGT}) : F', NAME', nilNL, N)
+    = if nameLength(NAME . NAME') <= 255 --- max domain length not reached
+        then (NAME . NAME')
+             $enumeratePaths(T, findSubtree(DNAME_TGT, T), NAME . NAME', DNAME_TGT (NAME . NAME'), N)
+             $enumeratePaths(T, F, NAME . NAME', nilNL, N)
+        else nilNL
+      fi
+      $enumeratePaths(T, F', NAME', nilNL, N) [owise] . --- DNAME_TGT =/= nullName
+  --- case 4: reached via DNAME edge, DNAME edge present
+  eq $enumeratePaths(T, (NAME [F]{DNAME_TGT}), NAME', NAME'' NL, N)
+    = if not(occursNL(DNAME_TGT, NAME'' NL))
+        then $enumeratePaths(T, findSubtree(DNAME_TGT, T), NAME', DNAME_TGT NAME'' NL, N)
+        else nilNL
+      fi
+      $enumeratePaths(T, F, NAME', nilNL, N) [owise] . --- DNAME_TGT =/= nullName
+  --- case 5: empty graph
+  eq $enumeratePaths(T, emptyLF, NAME', NL, N) = enumerateSymbolicSuffixes(NAME', N) .
+
+  --- Insert a single name into an existing label graph.
+  op insertName : Name LabelForest -> LabelForest .
+  ceq insertName(NAME . NAME', (NAME'' [F]{DNAME_TGT}) : F')
+    = if NAME' == NAME''
+        then (NAME'' [insertName(NAME, F)]{DNAME_TGT}) : F'
+        else (NAME'' [F]{DNAME_TGT}) : insertName(NAME . NAME', F')
+      fi
+    if isSingleLabel(NAME') .
+  ceq insertName(NAME', (NAME'' [F]{DNAME_TGT}) : F')
+    = if NAME' == NAME''
+        then (NAME'' [F]{DNAME_TGT}) : F'
+        else (NAME'' [F]{DNAME_TGT}) : insertName(NAME', F')
+      fi
+    if isSingleLabel(NAME') .
+
+  ceq insertName(NAME . NAME', emptyLF)
+    = (NAME' [insertName(NAME, emptyLF)]{nullName})
+    if isSingleLabel(NAME') .
+  ceq insertName(NAME', emptyLF)
+    = (NAME' [emptyLF]{nullName})
+    if isSingleLabel(NAME') .
+
+  --- Insert DNAME edge into an existing label graph.
+  ---   If the node for the owner name does not yet exist, it is created.
+  --- Args: owner name, target name, label graph
+  op insertDNAME : Name Name LabelForest -> LabelForest .
+  ceq insertDNAME(NAME . NAME', DNAME_TGT, (NAME'' [F]{DNAME_TGT'}) : F')
+    = if NAME' == NAME''
+        then (NAME'' [insertDNAME(NAME, DNAME_TGT, F)]{DNAME_TGT'}) : F'
+        else (NAME'' [F]{DNAME_TGT'}) : insertDNAME(NAME . NAME', DNAME_TGT, F')
+      fi
+    if isSingleLabel(NAME') .
+  ceq insertDNAME(NAME', DNAME_TGT, (NAME'' [F]{DNAME_TGT'}) : F')
+    = if NAME' == NAME''
+        then (NAME'' [F]{DNAME_TGT}) : F' --- note the new DNAME_TGT
+        else (NAME'' [F]{DNAME_TGT'}) : insertDNAME(NAME', DNAME_TGT, F')
+      fi
+    if isSingleLabel(NAME') .
+
+  ceq insertDNAME(NAME . NAME', DNAME_TGT, emptyLF)
+    = (NAME' [insertDNAME(NAME, DNAME_TGT, emptyLF)]{nullName})
+    if isSingleLabel(NAME') .
+  ceq insertDNAME(NAME', DNAME_TGT, emptyLF)
+    = NAME' [emptyLF]{DNAME_TGT}
+    if isSingleLabel(NAME') .
+
+  --- Insert a record into an existing label graph, i.e., create a node for the owner name.
+  ---   If the record has type DNAME, additionally creates a "DNAME edge".
+  op insertRecord : Record LabelForest -> LabelForest .
+  eq insertRecord(< NAME, RTYPE, TTL, RDATA >, F)
+    = if RTYPE == dname
+        then insertDNAME(NAME, RDATA, F)
+        else insertName(NAME, F)
+      fi .
+
+  --- Build a label graph from a list of records.
+  op labelGraphFromRecords : List{Record} -> LabelForest .
+  eq labelGraphFromRecords(RS) = $labelGraphFromRecords(RS, emptyLF) .
+
+  op $labelGraphFromRecords : List{Record} LabelForest -> LabelForest .
+  eq $labelGraphFromRecords(R RS, F) = $labelGraphFromRecords(RS, insertRecord(R, F)) .
+  eq $labelGraphFromRecords(nil, F) = F .
+
+  --- Get all the records present in a Config, i.e., in any zone of any name server.
+  op recordsOfConfig : Config -> List{Record} .
+  eq recordsOfConfig(< ADDR : Nameserver | db: RS, AS > C)
+    = RS recordsOfConfig(C) .
+  eq recordsOfConfig(C) = nil [owise] .
+
+  --- Build a label graph from a Config.
+  op labelGraphFromConfig : Config -> LabelForest .
+  eq labelGraphFromConfig(C) = labelGraphFromRecords(recordsOfConfig(C)) .
+
+  --- Whether the name is present in the NameSet.
+  op nameIsInSet : Name NameSet -> Bool .
+  eq nameIsInSet(NAME, NAME' ;;; NS)
+    = if NAME == NAME'
+        then true
+        else nameIsInSet(NAME, NS)
+      fi .
+  eq nameIsInSet(NAME, eptNS) = false .
+
+  --- Turn a NameList into a NameSet without duplicates.
+  op nameSetFromList : NameList -> NameSet .
+  eq nameSetFromList(NL) = $nameSetFromList(NL, eptNS) .
+
+  op $nameSetFromList : NameList NameSet -> NameSet .
+  eq $nameSetFromList(NAME NL, NS)
+    = if nameIsInSet(NAME, NS)
+        then $nameSetFromList(NL, NS)
+        else $nameSetFromList(NL, NS ;;; NAME)
+      fi .
+  eq $nameSetFromList(nilNL, NS) = NS .
+
+  --- Pick a name from the NameSet non-deterministically.
+  op pickNameNonDet : NameSet -> [Name] .
+  rl [pick-name] : pickNameNonDet(NAME ;;; NS) => NAME .
+
+  --- Pick a type non-deterministically.
+  --- Note that this covers only a subset of the defined types!
+  op pickTypeNonDet : -> [RType] .
+  rl [pick-type-a] : pickTypeNonDet => a .
+  rl [pick-type-ns] : pickTypeNonDet => ns .
+  rl [pick-type-soa] : pickTypeNonDet => soa .
+  rl [pick-type-cname] : pickTypeNonDet => cname .
+  rl [pick-type-txt] : pickTypeNonDet => txt .
+
+  --- Turn the given config into a config with a non-deterministic query.
+  --- Args: config without client, resolver address, client address
+  op initConfigWithNonDetQuery : Config Address Address -> Config .
+  eq initConfigWithNonDetQuery(C, ADDR, ADDR')
+    = C < ADDR' : Client |
+            queries:
+              query(1,
+              pickNameNonDet(nameSetFromList(enumeratePaths(labelGraphFromConfig(C), maxSymbolicLabels))),
+              pickTypeNonDet),
+            resolver: ADDR,
+            notifyDone: nullAddr > .
+
+endm

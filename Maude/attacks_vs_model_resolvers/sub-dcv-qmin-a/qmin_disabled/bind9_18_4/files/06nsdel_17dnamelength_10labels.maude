@@ -1,0 +1,175 @@
+load ../../../../../src/probabilistic-model/dns
+load ../../../../../src/probabilistic-model/sampler
+load ../../../../../src/probabilistic-model/properties
+        
+--- Created automatically with Python.
+--- This file simulates the Subqueries + Dname chain validation + QMIN attack. It consists
+--- of an attacker client query to a resolver which will trigger multiple NS
+--- delegations at a victim nameserver. The attacker managed to install some records in
+--- this victim nameserver, which trigger a long DNAME chain between the nameserver and
+--- the resolver. This is using the DNAME chain validation. Each DNAME answer contains
+--- a long response (with many labels) which increases the number of queries by the resolver.
+--- Attacker: client ; Victim : nameserver
+        
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  eq rsvTimeout? = false .
+  eq rsvTimeout = 1000.0 .
+
+ 	eq configWorkBudget = 5000 .
+
+	--- enable CNAME validation 
+	eq rsvMinCacheCredClient = 5 . 
+	eq rsvMinCacheCredResolver = 5 .
+
+
+         
+--- Deactivate QMIN
+eq maxMinimiseCount = 0 .
+
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'del . 'intermediary . 'com . root, a) .
+
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+
+  ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >  --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a1 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b1 . 'target-ans . 'com . root >
+
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a2 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b2 . 'target-ans . 'com . root >
+
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a3 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b3 . 'target-ans . 'com . root >
+
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a4 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b4 . 'target-ans . 'com . root >
+
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a5 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b5 . 'target-ans . 'com . root >
+
+
+		< 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a6 . 'target-ans . 'com . root , dname, testTTL, 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b6 . 'target-ans . 'com . root >
+
+    .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+    	--- Malicious delegation
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a1 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a2 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a3 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a4 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a5 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'sub . 'fake3 . 'fake2 . 'fake1 . 'fake0 .  'a6 . 'target-ans . 'com . root >
+
+    .
+
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- attacker authoritative name server
+    < addrNStargetANS : Nameserver | db: zoneTargetANS, queue: nilQueue >
+    --- intermediary.com authoritative name server
+    < addrNSintermediary : Nameserver | db: zoneIntermediary, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew numActorMsgsRecvd(addrNStargetANS, initConfig) .
+---rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .
+--- rew msgAmpFactor(cAddr ; addrNSattacker, rAddr, initConfig) .
+--- rew numActorMsgsRecvdTerminal(rAddr, initConfig) .
+--- rew numActorMsgsSentTerminal(cAddr ; addrNSattacker, initConfig) .
+---rew msgAmpFactorTerminal(cAddr, rAddr, initConfig) .
+
+--- rew msgAmpFactor(cAddr, rAddr, initConfig) .
+--- rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .
+        

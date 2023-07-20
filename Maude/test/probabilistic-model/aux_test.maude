@@ -1,0 +1,75 @@
+load ../../src/probabilistic-model/aux
+
+--- some constants
+mod TEST is
+  inc AUX .
+
+  op addr : -> Address .
+  op qmin : -> QMinState .
+
+endm
+
+--- pickKnownAddr unit tests
+red pickKnownAddr(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)) == 100 . 0 . 0 . 1 .
+red pickKnownAddr(('ns1 . 'com . root |-> 99 . 0 . 0 . 3, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)) == 99 . 0 . 0 . 3 .
+red pickKnownAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)) == 100 . 0 . 0 . 2 .
+
+--- sendQueriesWithoutTimeout unit tests
+red sendQueriesWithoutTimeout(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ), addr)
+  == [delay, to 100 . 0 . 0 . 1 from addr : query(1 .. ref, 'www . 'example . 'com . root, a), 0] .
+
+red sendQueriesWithoutTimeout(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, false), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ), addr)
+  == [delay, to 100 . 0 . 0 . 1 from addr : query(1 .. ref, 'www . 'example . 'com . root, qminQTYPE), 0] .
+
+red sendQueriesWithoutTimeout(
+    (queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 2 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )),
+    addr)
+  == [delay, to 100 . 0 . 0 . 1 from addr : query(1 .. ref, 'www . 'example . 'com . root, a), 0]
+     [delay, to 100 . 0 . 0 . 2 from addr : query(2 .. ref, 'www . 'example . 'com . root, a), 0] .
+
+--- sendQueriesWithTimeout unit tests
+red sendQueriesWithTimeout(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ), addr)
+  == [delay, to 100 . 0 . 0 . 1 from addr : query(1 .. ref, 'www . 'example . 'com . root, a), 0]
+     [rsvTimeout + genRandom(0.0, 0.0001), to addr from addr : timeout(1 .. ref, 100 . 0 . 0 . 1), 0] .
+
+red sendQueriesWithTimeout(
+    (queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 2 .. ref,
+      qminState('www . 'example . 'com . root, 10, 4, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )),
+    addr)
+  == [delay, to 100 . 0 . 0 . 1 from addr : query(1 .. ref, 'www . 'example . 'com . root, a), 0]
+     [delay, to 100 . 0 . 0 . 2 from addr : query(2 .. ref, 'www . 'example . 'com . root, a), 0]
+     [rsvTimeout + genRandom(0.0, 0.0001), to addr from addr : timeout(1 .. ref, 100 . 0 . 0 . 1), 0]
+     [rsvTimeout + genRandom(0.0, 0.0001), to addr from addr : timeout(2 .. ref, 100 . 0 . 0 . 2), 0] .
+
+--- sendFailureResponses unit tests
+red sendFailureResponses(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty > ), addr)
+  == [delay, to 1 . 2 . 3 . 4 from addr : response(1, 'www . 'example . 'com . root, nil, nil, nil, 2), 0] .
+
+red sendFailureResponses(
+    (queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty >) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'www . 'example . 'com . root, 1, qmin, nil,
+      < ('com . root) empty > )),
+    addr)
+  == [delay, to 1 . 2 . 3 . 4 from addr : response(1, 'www . 'example . 'com . root, nil, nil, nil, 2), 0]
+     [delay, to 1 . 2 . 3 . 4 from addr : response(2, 'www . 'example . 'com . root, nil, nil, nil, 2), 0] .

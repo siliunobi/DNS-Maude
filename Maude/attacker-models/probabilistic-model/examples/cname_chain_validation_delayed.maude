@@ -1,0 +1,109 @@
+load ../../../src/probabilistic-model/dns
+load ../../../src/probabilistic-model/sampler
+load ../../../src/probabilistic-model/properties
+load ../attacker
+
+--- This attack exploits a malicious nameserver that sends delayed responses in combination with the "CNAME scrubbing"
+--- behavior implemented by popular resolvers such as BIND and Unbound, where they validate each element of a CNAME
+--- chain in a separate query.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER .
+
+  --- Increase data credibility requirement for client queries
+  eq rsvMinCacheCredClient = 5 .
+
+  eq rsvTimeout? = true .
+  eq rsvTimeout = 1000.0 .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1) .
+
+  ops addrRoot addrNScom addrNStargetANS : -> Address .
+
+  ops zoneRoot zoneCom zoneTargetANS : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    --- half of the CNAME chain (every second record); note the TTL of zero
+    unchainedRecords('target-ans . 'com . root, 'target-ans . 'com . root, 10, 0, 0.0) .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: unchainedQuery('target-ans . 'com . root, 10, 0),
+                       resolver: rAddr,
+                       notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the name servers of target-ans.com and intermediary.com are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- target-ans.com authoritative name server
+    < addrNStargetANS : DelayedNameserver | db: zoneTargetANS, nsDelay: 500.0 > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .
+rew maxQueryDuration(initConfig) .

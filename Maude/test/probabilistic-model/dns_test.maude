@@ -1,0 +1,949 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load test_helpers
+load ../../src/probabilistic-model/properties
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + TEST-HELPERS + PROPERTIES .
+
+  --- eq rsvMinCacheCredClient = 5 .
+
+  var QS : List{Query} .
+  var CACHE : Cache .
+
+  ops zoneTTL cacheTTL : -> Float .
+  eq zoneTTL = 3600.0 . --- Note that this is in time units, not seconds
+  eq cacheTTL = 3600.0 . --- Note that this is in time units, not seconds
+  
+  ops q q' q'' qNX qNS qNXNS qNSAlias : -> Query .
+  ops qAlias qCName qAliasSubzone qAliasSiblingZone qNXAlias qAlias' qAliasLoop qAliasLoopCName : -> Query .
+  ops qWildcardCName qNodata qQMinAliasSubzone qQMinAliasSiblingZone qQMinRFC qQMinNXAlias : -> Query .
+  ops qDName qDNameSiblingZone qDNameSubZone qDNameLoop qDNameShortloop qDNameInternal qDNameAlias qDNameDName : -> Query .
+  ops qDNameLong qAliasDNameLong : -> Query .
+  op qDomain2 : -> Query .
+  ops qDNameCName qDNameCNameMin : -> Query .
+
+  eq q = query(1, 'www . 'example . 'com . root, a) .
+  eq q' = query(2, 'www . 'example . 'com . root, anyType) .
+  eq q'' = query(3, 'example2 . 'com . root, ns) .
+  eq qNX = query(1, 'nxdomain . 'example . 'com . root, anyType) .
+  eq qNS = query(1, 'ns . 'example . 'com . root, anyType) .
+  eq qNXNS = query(1, 'sd0 . 'attacker . 'com . root, a) .
+  eq qNSAlias = query(1, 'www . 'example3 . 'com . root, a) .
+  eq qAlias = query(1, 'alias . 'example . 'com . root, a) . --- This should follow the CNAMEs
+  eq qCName = query(1, 'alias . 'example . 'com . root, anyType) . --- This should return the CNAME record itself
+  eq qAliasSubzone = query(1, 'alias . 'com . root, a) .
+  eq qAliasSiblingZone = query(1, 'alias . 'example2 . 'com . root, a) .
+  eq qNXAlias = query(1, 'nxalias . 'example . 'com . root, a) .
+  eq qAlias' = query(1, 'alias . 'domain2 . 'com . root, a) .
+  eq qAliasLoop = query(1, 'loopalias . 'example . 'com . root, a) .
+  eq qAliasLoopCName = query(1, 'loopalias . 'example . 'com . root, cname) .
+  eq qWildcardCName = query(1, 'something . 'sub . 'example2 . 'com . root, a) .
+  eq qNodata = query(1, 'sub1 . 'example2 . 'com . root, a) .
+  eq qQMinAliasSubzone = query(1, 'www . 'nontermalias . 'example2 . 'com . root, a) .
+  eq qQMinAliasSiblingZone = query(1, 'www . 'nontermalias . 'com . root, a) .
+  eq qQMinRFC = query(1, '18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . 'example2 . 'com . root, a) .
+  eq qQMinNXAlias = query(1, 'www . 'nxnontermalias . 'example2 . 'com . root, a) .
+  eq qDName = query(1, 'dname . 'example2 . 'com . root, dname) .
+  eq qDNameSiblingZone = query(1, 'www . 'dname . 'example2 . 'com . root, a) .
+  eq qDNameSubZone = query(1, 'www . 'dname . 'com . root, a) .
+  eq qDNameLoop = query(1, 'www . 'dnameloop . 'example . 'com . root, a) .
+  eq qDNameShortloop = query(1, 'www . 'dname . 'dname . 'example . 'com . root, a) .
+  eq qDNameInternal = query(1, 'aaa . 'bbb . 'dname . 'example . 'com . root, a) .
+  eq qDNameAlias = query(1, 'alias . 'dname . 'example . 'com . root, a) .
+  eq qDNameDName = query(1, 'dname . 'dname . 'example2 . 'com . root, dname) .
+  eq qDNameLong = query(1, 'overflow . 'dnamelong . 'example . 'com . root, a) .
+  eq qAliasDNameLong = query(1, 'aliasdnamelong . 'example2 . 'com . root, a) .
+  eq qDomain2 = query(1, 'www . 'domain2 . 'com . root, a) .
+  eq qDNameCName = query(1, 'alias . 'dname . 'example . 'com . root, cname) .
+  eq qDNameCNameMin = query(1, 'alias . 'dname . 'dname . 'example . 'com . root, cname) .
+
+  ops cache cacheNS cacheNSPartial cacheNSAlias cacheNXNSAlias cacheNSCNameChain cacheAliasPartial cacheAlias cacheAliasLoop : -> Cache .
+  ops cacheNSNodata cacheNSLoop cacheExample2 : -> Cache .
+  ops cacheDName cacheDNameExample cacheNSDName cacheDNameLong : -> Cache .
+  ops cacheRefused cacheRefusedRecover cacheBadRef cacheBadRefRecover cacheOneNXNS : -> Cache .
+
+  --- a cache that allows to directly answer the client query q
+  eq cache =
+    cacheEntry(< 'www . 'example . 'com . root, a, cacheTTL, addrTarget >, 5) .
+
+  --- a cache that requires the resolver to create its own queries to resolve name server addresses
+  eq cacheNS =
+    cacheEntry(< 'example . 'com . root, ns, cacheTTL, 'ns . 'example . 'com . root >, 5)
+    cacheEntry(< 'com . root, ns, cacheTTL, 'ns1 . 'com . root >, 5)
+    cacheEntry(< 'com . root, ns, cacheTTL, 'ns2 . 'com . root >, 5) .
+
+  eq cacheNSPartial =
+    cacheEntry(< 'com . root, ns, cacheTTL, 'ns1 . 'com . root >, 5)
+    cacheEntry(< 'com . root, ns, cacheTTL, 'ns2 . 'com . root >, 5)
+    cacheEntry(< 'ns1 . 'com . root, a, cacheTTL, addrNS1com >, 5) .
+
+  --- TODO: non-termination if cred > 1
+  eq cacheNSAlias =
+    cacheEntry(< 'example3 . 'com . root, ns, cacheTTL, 'nsalias . 'example3 . 'com . root >, 1) .
+
+  --- TODO: non-termination if cred > 1
+  eq cacheNXNSAlias =
+    cacheEntry(< 'example3 . 'com . root, ns, cacheTTL, 'nxnsalias . 'example3 . 'com . root >, 1) .
+
+  eq cacheNSCNameChain =
+    cacheEntry(< 'example3 . 'com . root, ns, cacheTTL, 'nscnamechain . 'example3 . 'com . root >, 1) .
+
+  eq cacheAliasPartial =
+    cacheEntry(< 'alias . 'example . 'com . root, cname, cacheTTL, 'alias2 . 'example . 'com . root >, 5) .
+
+  eq cacheAlias =
+    cacheAliasPartial
+    cacheEntry(< 'alias2 . 'example . 'com . root, cname, cacheTTL, 'www . 'example . 'com . root >, 5)
+    cacheEntry(< 'www . 'example . 'com . root, a, cacheTTL, addrTarget >, 5) .
+
+  eq cacheAliasLoop =
+    cacheEntry(< 'loopalias . 'example . 'com . root, cname, cacheTTL, 'loopalias . 'example2 . 'com . root >, 5)
+    cacheEntry(< 'loopalias . 'example2 . 'com . root, cname, cacheTTL, 'loopalias . 'example . 'com . root >, 5) .
+
+  eq cacheNSNodata =
+    cacheEntry(< 'example . 'com . root, ns, cacheTTL, 'sub1 . 'example2 . 'com . root >, 1) . --- points to an ENT
+
+  eq cacheNSLoop =
+    cacheEntry(< 'domain2 . 'com . root, ns, cacheTTL, 'myalias . 'example . 'com . root >, 1)
+    cacheEntry(< 'myalias . 'example . 'com . root, cname, cacheTTL, 'loopalias . 'example . 'com . root >, 5)
+    . --- name server alias and loop for name server
+
+  eq cacheExample2 =
+    cacheEntry(< 'example2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >, 5)
+    cacheEntry(< 'ns . 'example2 . 'com . root, a, zoneTTL, addrNSexample2 >, 5) .
+
+  eq cacheDName =
+    cacheEntry(< 'dnameloop . 'example . 'com . root, dname, zoneTTL, 'dnameloop . 'example2 . 'com . root >, 5)
+    cacheEntry(< 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >, 5)
+    cacheEntry(< 'dnameloop . 'example2 . 'com . root, dname, zoneTTL, 'dnameloop . 'example . 'com . root >, 5) .
+
+  eq cacheDNameExample =
+    cacheEntry(< 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >, 5) .
+
+  eq cacheNSDName =
+    cacheEntry(< 'example . 'com . root, ns, zoneTTL, 'ns . 'dname . 'example . 'com . root >, 1) .
+
+  eq cacheDNameLong =
+    cacheEntry(< 'dnamelong . 'example . 'com . root, dname, zoneTTL,
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'example . 'com . root >, 5) .
+
+  eq cacheRefused =
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >, 1) --- wrong delegation
+    cacheEntry(< 'ns . 'example2 . 'com . root, a, zoneTTL, addrNSexample2 >, 1) .
+
+  eq cacheRefusedRecover =
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >, 1) --- wrong delegation
+    cacheEntry(< 'ns . 'example2 . 'com . root, a, zoneTTL, addrNSexample2 >, 1)
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >, 1) .
+
+  eq cacheBadRef =
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns1 . 'com . root >, 1) --- delegation to parent zone
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns2 . 'com . root >, 1) --- delegation to parent zone
+    cacheEntry(< 'ns1 . 'com . root, a, zoneTTL, addrNS1com >, 1)
+    cacheEntry(< 'ns2 . 'com . root, a, zoneTTL, addrNS2com >, 1) .
+
+  eq cacheBadRefRecover =
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns1 . 'com . root >, 1) --- delegation to parent zone
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns2 . 'com . root >, 1) --- delegation to parent zone
+    cacheEntry(< 'ns1 . 'com . root, a, zoneTTL, addrNS1com >, 1)
+    cacheEntry(< 'ns2 . 'com . root, a, zoneTTL, addrNS2com >, 1)
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >, 1) .
+
+  eq cacheOneNXNS =
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >, 1)
+    cacheEntry(< 'domain2 . 'com . root, ns, zoneTTL, 'nxns . 'domain2 . 'com . root >, 1)
+    cacheEntry(< 'nxns . 'domain2 . 'com . root, ns, zoneTTL, 'nxns . root >, 1) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNS1com addrNS2com addrNSexample addrNSexample2 addrNSexample3 addrTarget addrNSattacker addrNSdomain1 : -> Address .
+  eq addrTarget = 1 . 2 . 3 . 4 .
+
+  ops dbRoot dbNScom dbNSexample dbNSexample2 dbNSexample3 dbNSattacker dbDomain1 dbDomain2 : -> List{Record} .
+  
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, zoneTTL, soaData(zoneTTL) >
+    < root, ns, zoneTTL, 'a . 'root-servers . 'net . root >
+    
+    --- non-authoritative data
+    < 'com . root, ns, zoneTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, zoneTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, zoneTTL, addrNS1com >   --- glue record
+    < 'ns2 . 'com . root, a, zoneTTL, addrNS2com > . --- glue record
+
+  eq dbNScom =
+    --- authoritative data
+    < 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'com . root, ns, zoneTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, zoneTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, zoneTTL, addrNS1com >
+    < 'ns2 . 'com . root, a, zoneTTL, addrNS2com >
+    < 'alias . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root > --- an alias to a name in a sub-zone
+    < 'dname . 'com . root, dname, zoneTTL, 'example . 'com . root > --- DNAME redirection to a name in a sub-zone
+    < 'nontermalias . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root > --- a CNAME with more records below
+    < 'www . 'nontermalias . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >
+
+    --- non-authoritative data
+    < 'example . 'com . root, ns, zoneTTL, 'ns . 'example . 'com . root >
+    < 'ns . 'example . 'com . root, a, zoneTTL, addrNSexample > --- glue record
+
+    < 'example2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >
+    < 'ns . 'example2 . 'com . root, a, zoneTTL, addrNSexample2 > --- glue record
+
+    < 'example3 . 'com . root, ns, zoneTTL, 'ns . 'example3 . 'com . root >
+    < 'ns . 'example3 . 'com . root, a, zoneTTL, addrNSexample3 > --- glue record
+
+    < 'attacker . 'com . root, ns, zoneTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, zoneTTL, addrNSattacker > --- glue record
+
+    < 'domain1 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >
+    < 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >
+    < 'ns . 'domain1 . 'com . root, a, zoneTTL, addrNSdomain1 > . --- glue record
+
+  eq dbNSexample =
+    --- authoritative data
+    < 'example . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'example . 'com . root, ns, zoneTTL, 'ns . 'example . 'com . root >
+    < 'ns . 'example . 'com . root, a, zoneTTL, addrNSexample >
+    < 'www . 'example . 'com . root, a, zoneTTL, addrTarget >
+    < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >
+    < 'alias2 . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+    < 'nxalias . 'example . 'com . root, cname, zoneTTL, 'nxdomain . 'example . 'com . root >
+    < 'loopalias . 'example . 'com . root, cname, zoneTTL, 'loopalias . 'example2 . 'com . root >
+    < 'dnameloop . 'example . 'com . root, dname, zoneTTL, 'dnameloop . 'example2 . 'com . root >
+    < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root > 
+    < 'dnamelong . 'example . 'com . root, dname, zoneTTL,
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'example . 'com . root > . --- 250 octets
+
+  eq dbNSexample2 =
+    --- authoritative data
+    < 'example2 . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'example2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >
+    < 'ns . 'example2 . 'com . root, a, zoneTTL, addrNSexample2 >
+    < 'alias . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root > --- alias to a name in a sibling zone
+    < 'loopalias . 'example2 . 'com . root, cname, zoneTTL, 'loopalias . 'example . 'com . root >
+    < wildcard . 'sub . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root > --- wildcard CNAME record
+
+    < 'sub2 . 'sub1 . 'example2 . 'com . root, a, zoneTTL, 2 . 2 . 2 . 2 > --- sub1 is an empty non-terminal (ENT)
+    < 'nontermalias . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root > --- a CNAME with more records below
+    < 'nxnontermalias . 'example2 . 'com . root, cname, zoneTTL, 'nxdomain . wildcard . 'example2 . 'com . root > --- same, but canonical name does not exist
+    < 'www . 'nontermalias . 'example2 . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >
+    < 'www . 'nxnontermalias . 'example2 . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >
+    < wildcard . 'example2 . 'com . root, a, zoneTTL, 3 . 4 . 4 . 3 >
+    < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+    < 'dnameloop . 'example2 . 'com . root, dname, zoneTTL, 'dnameloop . 'example . 'com . root >
+    < 'aliasdnamelong . 'example2 . 'com . root, cname, zoneTTL, 'overflow . 'dnamelong . 'example . 'com . root > .
+
+  eq dbNSexample3 =
+    --- authoritative data
+    < 'example3 . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'example3 . 'com . root, ns, zoneTTL, 'ns . 'example3 . 'com . root >
+    < 'ns . 'example3 . 'com . root, a, zoneTTL, addrNSexample3 >
+    < 'nsalias . 'example3 . 'com . root, cname, zoneTTL, 'ns . 'example3 . 'com . root > --- NS alias
+    < 'nxnsalias . 'example3 . 'com . root, cname, zoneTTL, 'nxns . 'example3 . 'com . root > --- NXNS alias
+    < 'www . 'example3 . 'com . root, a, zoneTTL, 7 . 8 . 9 . 10 >
+    < 'loopalias1 . 'example3 . 'com . root, cname, zoneTTL, 'loopalias2 . 'example3 . 'com . root >
+    < 'loopalias2 . 'example3 . 'com . root, cname, zoneTTL, 'loopalias1 . 'example3 . 'com . root >
+    < 'nscnamechain . 'example3 . 'com . root, cname, zoneTTL, 'nscnamechain1 . 'example3 . 'com . root >
+    < 'nscnamechain1 . 'example3 . 'com . root, cname, zoneTTL, 'nscnamechain2 . 'example3 . 'com . root >
+    < 'nscnamechain2 . 'example3 . 'com . root, cname, zoneTTL, 'ns . 'example3 . 'com . root > .
+
+  eq dbNSattacker =
+    --- authoritative data
+    < 'attacker . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'attacker . 'com . root, ns, zoneTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, zoneTTL, addrNSattacker >
+
+    --- non-authoritative data
+    < 'sd0 . 'attacker . 'com . root, ns, zoneTTL, 'fakens0 . 'example . 'com . root > . --- fake referral to NXNS in victim domain
+
+  eq dbDomain1 =
+    --- authoritative data
+    < 'domain1 . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'domain1 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root >
+    < 'ns . 'domain1 . 'com . root, a, zoneTTL, addrNSdomain1 >
+    < 'alias . 'domain1 . 'com . root, cname, zoneTTL, 'www . 'domain1 . 'com . root >
+    < 'www . 'domain1 . 'com . root, a, zoneTTL, 4 . 3 . 2 . 1 > .
+
+  eq dbDomain2 =
+    --- authoritative data
+    < 'domain2 . 'com . root, soa, zoneTTL, soaData(zoneTTL) >
+    < 'domain2 . 'com . root, ns, zoneTTL, 'ns . 'domain1 . 'com . root > --- name server under domain1.com
+    < 'alias . 'domain2 . 'com . root, cname, zoneTTL, 'alias . 'domain1 . 'com . root >
+    < 'www . 'domain2 . 'com . root, a, zoneTTL, 7 . 7 . 7 . 7 > .
+
+  op initConfig : List{Query} Cache -> Config .
+  eq initConfig(QS, CACHE) = run(initStateForQuery(QS, CACHE), limit) .
+
+  op initStateForQuery : List{Query} Cache -> Config .
+  eq initStateForQuery(QS, CACHE) = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: QS, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: CACHE,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Name servers
+    < addrRoot : Nameserver | db: dbRoot, queue: nilQueue >
+    < addrNS1com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNS2com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNSexample : Nameserver | db: dbNSexample, queue: nilQueue >
+    < addrNSexample2 : Nameserver | db: dbNSexample2, queue: nilQueue >
+    < addrNSexample3 : Nameserver | db: dbNSexample3, queue: nilQueue >
+    < addrNSattacker : Nameserver | db: dbNSattacker, queue: nilQueue >
+    < addrNSdomain1 : Nameserver | db: (dbDomain1 dbDomain2), queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+set clear rules off .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+--- rew initConfig(q, cache) .
+--- rew initConfig(q, nilCache) .
+--- rew initConfig(qNS, nilCache) .
+--- rew initConfig(qNX, nilCache) .
+--- rew initConfig(q, cacheNS) .
+--- rew initConfig(q, cacheNSPartial) .
+--- rew initConfig(qNXNS, nilCache) .
+--- rew initConfig(qAlias, nilCache) .
+--- rew initConfig(qAlias, cacheAliasPartial) .
+--- rew initConfig(qAlias, cacheAlias) .
+--- rew initConfig(qCName, nilCache) .
+--- rew initConfig(qAliasSubzone, nilCache) .
+--- rew initConfig(qAliasSubzone, cache) .
+--- rew initConfig(qAliasSiblingZone, nilCache) .
+--- rew initConfig(qAliasSiblingZone, cache) .
+--- rew initConfig(qNXAlias, nilCache) .
+--- rew initConfig(qNSAlias, cacheNSAlias) .
+--- rew initConfig(qNSAlias, cacheNXNSAlias) .
+--- rew initConfig(qNSAlias, cacheNSCNameChain) .
+--- rew initConfig(q q', nilCache) .
+--- rew initConfig(q q'', nilCache) .
+--- rew initConfig(qAlias', nilCache) .
+--- rew initConfig(qAliasLoop, nilCache) .
+--- rew initConfig(qAliasLoop, cacheAliasLoop) .
+--- rew initConfig(qAliasLoopCName, nilCache) .
+--- rew initConfig(qAliasLoopCName, cacheAliasLoop) .
+--- rew initConfig(qWildcardCName, nilCache) .
+--- rew initConfig(qNodata, nilCache) .
+--- rew initConfig(q, cacheNSNodata) .
+--- rew initConfig(qQMinAliasSubzone, nilCache) .
+--- rew initConfig(qQMinAliasSiblingZone, nilCache) .
+--- rew initConfig(qQMinRFC, cacheExample2) .
+--- rew initConfig(qQMinNXAlias, nilCache) .
+--- rew initConfig(qDName, nilCache) .
+--- rew initConfig(qDNameSiblingZone, nilCache) .
+--- rew initConfig(qDNameSubZone, nilCache) .
+--- rew initConfig(qDNameLoop, nilCache) .
+--- rew initConfig(qDName, cacheDName) .
+--- rew initConfig(qDNameSiblingZone, cacheDName) .
+--- rew initConfig(qDNameLoop, cacheDName) .
+--- rew initConfig(qDNameInternal, nilCache) .
+--- rew initConfig(qDNameAlias, nilCache) .
+--- rew initConfig(qDNameSiblingZone, cache) .
+--- rew initConfig(q, cacheNSDName) .
+--- rew initConfig(qDNameDName, nilCache) .
+--- rew initConfig(qDNameDName, cacheDNameExample) .
+--- rew initConfig(qDomain2, cacheRefused) .
+--- rew initConfig(qDomain2, cacheRefusedRecover) .
+--- rew initConfig(qDomain2, cacheBadRef) .
+--- rew initConfig(qDomain2, cacheBadRefRecover) .
+--- rew initConfig(qDNameLong, cacheDNameLong) .
+--- rew initConfig(qDNameLong, nilCache) .
+--- rew initConfig(qAliasDNameLong, nilCache) .
+--- rew initConfig(qDNameShortloop, nilCache) .
+--- rew initConfig(qDNameShortloop, cache) .
+--- rew initConfig(qDNameCName, nilCache) .
+--- rew initConfig(qDNameCNameMin, nilCache) .
+--- rew initConfig(qDNameCNameMin, cacheDNameExample) .
+--- rew initConfig(qDomain2, cacheNSLoop) .
+--- rew initConfig(qDomain2, cacheOneNXNS) .
+
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, cache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNS, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'ns . 'example . 'com . root,
+        < 'ns . 'example . 'com . root, a, zoneTTL, addrNSexample >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNX, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'nxdomain . 'example . 'com . root,
+        nil, < 'example . 'com . root, soa, zoneTTL, soaData(zoneTTL) >, nil, 3)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, cacheNS),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, cacheNSPartial),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNXNS, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'sd0 . 'attacker . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAlias, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example . 'com . root,
+        < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >
+        < 'alias2 . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAlias, cacheAliasPartial),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example . 'com . root,
+        < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >
+        < 'alias2 . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAlias, cacheAlias),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example . 'com . root,
+        < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >
+        < 'alias2 . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qCName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example . 'com . root,
+        < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasSubzone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'com . root,
+        < 'alias . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasSubzone, cache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'com . root,
+        < 'alias . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasSiblingZone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example2 . 'com . root,
+        < 'alias . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasSiblingZone, cache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'example2 . 'com . root,
+        < 'alias . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNXAlias, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'nxalias . 'example . 'com . root,
+        < 'nxalias . 'example . 'com . root, cname, zoneTTL, 'nxdomain . 'example . 'com . root >,
+        < 'example . 'com . root, soa, zoneTTL, soaData(zoneTTL) >,
+        nil, 3)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNSAlias, cacheNSAlias),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example3 . 'com . root,
+        < 'www . 'example3 . 'com . root, a, zoneTTL, 7 . 8 . 9 . 10 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNSAlias, cacheNXNSAlias),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example3 . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNSAlias, cacheNSCNameChain),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example3 . 'com . root,
+        < 'www . 'example3 . 'com . root, a, zoneTTL, 7 . 8 . 9 . 10 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q q', nilCache),
+    tupleAddrResp(cAddr,
+      response(2, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q q'', nilCache),
+    tupleAddrResp(cAddr,
+      response(3, 'example2 . 'com . root,
+        < 'example2 . 'com . root, ns, zoneTTL, 'ns . 'example2 . 'com . root >, nil, nil, 0)
+    )
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAlias', nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'domain2 . 'com . root,
+        < 'alias . 'domain2 . 'com . root, cname, zoneTTL, 'alias . 'domain1 . 'com . root >
+        < 'alias . 'domain1 . 'com . root, cname, zoneTTL, 'www . 'domain1 . 'com . root >
+        < 'www . 'domain1 . 'com . root, a, zoneTTL, 4 . 3 . 2 . 1 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasLoop, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'loopalias . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasLoop, cacheAliasLoop),
+    tupleAddrResp(cAddr,
+      response(1, 'loopalias . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasLoopCName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'loopalias . 'example . 'com . root,
+        < 'loopalias . 'example . 'com . root, cname, cacheTTL, 'loopalias . 'example2 . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasLoopCName, cacheAliasLoop),
+    tupleAddrResp(cAddr,
+      response(1, 'loopalias . 'example . 'com . root,
+        < 'loopalias . 'example . 'com . root, cname, cacheTTL, 'loopalias . 'example2 . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qWildcardCName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'something . 'sub . 'example2 . 'com . root,
+        < 'something . 'sub . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qNodata, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'sub1 . 'example2 . 'com . root,
+        nil, < 'example2 . 'com . root, soa, zoneTTL, soaData(zoneTTL) >, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, cacheNSNodata),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qQMinAliasSubzone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'nontermalias . 'example2 . 'com . root,
+        < 'www . 'nontermalias . 'example2 . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qQMinAliasSiblingZone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'nontermalias . 'com . root,
+        < 'www . 'nontermalias . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qQMinRFC, cacheExample2),
+    tupleAddrResp(cAddr,
+      response(1, '18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 .
+                    'example2 . 'com . root,
+        < '18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 .
+            'example2 . 'com . root, a, zoneTTL, 3 . 4 . 4 . 3 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qQMinNXAlias, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'nxnontermalias . 'example2 . 'com . root,
+        < 'www . 'nxnontermalias . 'example2 . 'com . root, a, zoneTTL, 9 . 9 . 9 . 9 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameSiblingZone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameSubZone, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'com . root,
+        < 'dname . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameLoop, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dnameloop . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDName, cacheDName),
+    tupleAddrResp(cAddr,
+      response(1, 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameSiblingZone, cacheDName),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameLoop, cacheDName),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dnameloop . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameInternal, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'aaa . 'bbb . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'aaa . 'bbb . 'dname . 'example . 'com . root, cname, zoneTTL, 'aaa . 'bbb . 'example . 'com . root >,
+        < 'example . 'com . root, soa, zoneTTL, soaData(zoneTTL) >, nil, 3)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameAlias, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'alias . 'dname . 'example . 'com . root, cname, zoneTTL, 'alias . 'example . 'com . root >
+        < 'alias . 'example . 'com . root, cname, zoneTTL, 'alias2 . 'example . 'com . root >
+        < 'alias2 . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameSiblingZone, cache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'example2 . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, cacheNSDName),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'example . 'com . root,
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameDName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'dname . 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'dname . 'dname . 'example2 . 'com . root, cname, zoneTTL, 'dname . 'example . 'com . root >
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameDName, cacheDNameExample),
+    tupleAddrResp(cAddr,
+      response(1, 'dname . 'dname . 'example2 . 'com . root,
+        < 'dname . 'example2 . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'dname . 'dname . 'example2 . 'com . root, cname, zoneTTL, 'dname . 'example . 'com . root >
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheRefused),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheRefusedRecover),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        < 'www . 'domain2 . 'com . root, a, zoneTTL, 7 . 7 . 7 . 7 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheBadRef),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheBadRefRecover),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        < 'www . 'domain2 . 'com . root, a, zoneTTL, 7 . 7 . 7 . 7 >, nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameLong, cacheDNameLong),
+    tupleAddrResp(cAddr,
+      response(1, 'overflow . 'dnamelong . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameLong, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'overflow . 'dnamelong . 'example . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qAliasDNameLong, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'aliasdnamelong . 'example2 . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameShortloop, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'dname . 'example . 'com . root, cname, zoneTTL, 'www . 'dname . 'example . 'com . root >
+        < 'www . 'dname . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameShortloop, cache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'dname . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'www . 'dname . 'dname . 'example . 'com . root, cname, zoneTTL, 'www . 'dname . 'example . 'com . root >
+        < 'www . 'dname . 'example . 'com . root, cname, zoneTTL, 'www . 'example . 'com . root >
+        < 'www . 'example . 'com . root, a, zoneTTL, 1 . 2 . 3 . 4 >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameCName, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'alias . 'dname . 'example . 'com . root, cname, zoneTTL, 'alias . 'example . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameCNameMin, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'dname . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'alias . 'dname . 'dname . 'example . 'com . root, cname, zoneTTL, 'alias . 'dname . 'example . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDNameCNameMin, cacheDNameExample),
+    tupleAddrResp(cAddr,
+      response(1, 'alias . 'dname . 'dname . 'example . 'com . root,
+        < 'dname . 'example . 'com . root, dname, zoneTTL, 'example . 'com . root >
+        < 'alias . 'dname . 'dname . 'example . 'com . root, cname, zoneTTL, 'alias . 'dname . 'example . 'com . root >,
+        nil, nil, 0)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheNSLoop),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        nil, nil, nil, 2)
+    )
+  ) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(qDomain2, cacheOneNXNS),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'domain2 . 'com . root,
+        < 'www . 'domain2 . 'com . root, a, zoneTTL, 7 . 7 . 7 . 7 >, nil, nil, 0)
+    )
+  ) .

@@ -1,0 +1,309 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+
+--- This is the initial configuration corresponding to the scenario from attack validation on real
+--- implementations for the "Subqueries Unchained" attack.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  eq rsvTimeout? = false .
+  eq rsvTimeout = 1000.0 .
+
+  --- eq maxFetch? = true .
+  eq maxFetchParam = 6 .
+  eq configWorkBudget = 5000 .
+
+  --- enable CNAME validation
+  eq rsvMinCacheCredClient = 5 .
+  eq rsvMinCacheCredResolver = 5 .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'del . 'intermediary . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+  ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+  ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS > --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    < 'a1 . 'target-ans . 'com . root, cname, testTTL, 'b1 . 'target-ans . 'com . root >
+    < 'b1 . 'target-ans . 'com . root, cname, testTTL, 'c1 . 'target-ans . 'com . root >
+    < 'c1 . 'target-ans . 'com . root, cname, testTTL, 'd1 . 'target-ans . 'com . root >
+    < 'd1 . 'target-ans . 'com . root, cname, testTTL, 'e1 . 'target-ans . 'com . root >
+    < 'e1 . 'target-ans . 'com . root, cname, testTTL, 'f1 . 'target-ans . 'com . root >
+    < 'f1 . 'target-ans . 'com . root, cname, testTTL, 'g1 . 'target-ans . 'com . root >
+    < 'g1 . 'target-ans . 'com . root, cname, testTTL, 'h1 . 'target-ans . 'com . root >
+    < 'h1 . 'target-ans . 'com . root, cname, testTTL, 'i1 . 'target-ans . 'com . root >
+    < 'i1 . 'target-ans . 'com . root, cname, testTTL, 'j1 . 'target-ans . 'com . root >
+    < 'j1 . 'target-ans . 'com . root, cname, testTTL, 'k1 . 'target-ans . 'com . root >
+    < 'k1 . 'target-ans . 'com . root, cname, testTTL, 'l1 . 'target-ans . 'com . root >
+    < 'l1 . 'target-ans . 'com . root, cname, testTTL, 'm1 . 'target-ans . 'com . root >
+    < 'm1 . 'target-ans . 'com . root, cname, testTTL, 'n1 . 'target-ans . 'com . root >
+    < 'n1 . 'target-ans . 'com . root, cname, testTTL, 'o1 . 'target-ans . 'com . root >
+    < 'o1 . 'target-ans . 'com . root, cname, testTTL, 'p1 . 'target-ans . 'com . root >
+    < 'p1 . 'target-ans . 'com . root, cname, testTTL, 'q1 . 'target-ans . 'com . root >
+
+    < 'a2 . 'target-ans . 'com . root, cname, testTTL, 'b2 . 'target-ans . 'com . root >
+    < 'b2 . 'target-ans . 'com . root, cname, testTTL, 'c2 . 'target-ans . 'com . root >
+    < 'c2 . 'target-ans . 'com . root, cname, testTTL, 'd2 . 'target-ans . 'com . root >
+    < 'd2 . 'target-ans . 'com . root, cname, testTTL, 'e2 . 'target-ans . 'com . root >
+    < 'e2 . 'target-ans . 'com . root, cname, testTTL, 'f2 . 'target-ans . 'com . root >
+    < 'f2 . 'target-ans . 'com . root, cname, testTTL, 'g2 . 'target-ans . 'com . root >
+    < 'g2 . 'target-ans . 'com . root, cname, testTTL, 'h2 . 'target-ans . 'com . root >
+    < 'h2 . 'target-ans . 'com . root, cname, testTTL, 'i2 . 'target-ans . 'com . root >
+    < 'i2 . 'target-ans . 'com . root, cname, testTTL, 'j2 . 'target-ans . 'com . root >
+    < 'j2 . 'target-ans . 'com . root, cname, testTTL, 'k2 . 'target-ans . 'com . root >
+    < 'k2 . 'target-ans . 'com . root, cname, testTTL, 'l2 . 'target-ans . 'com . root >
+    < 'l2 . 'target-ans . 'com . root, cname, testTTL, 'm2 . 'target-ans . 'com . root >
+    < 'm2 . 'target-ans . 'com . root, cname, testTTL, 'n2 . 'target-ans . 'com . root >
+    < 'n2 . 'target-ans . 'com . root, cname, testTTL, 'o2 . 'target-ans . 'com . root >
+    < 'o2 . 'target-ans . 'com . root, cname, testTTL, 'p2 . 'target-ans . 'com . root >
+    < 'p2 . 'target-ans . 'com . root, cname, testTTL, 'q2 . 'target-ans . 'com . root >
+
+    < 'a3 . 'target-ans . 'com . root, cname, testTTL, 'b3 . 'target-ans . 'com . root >
+    < 'b3 . 'target-ans . 'com . root, cname, testTTL, 'c3 . 'target-ans . 'com . root >
+    < 'c3 . 'target-ans . 'com . root, cname, testTTL, 'd3 . 'target-ans . 'com . root >
+    < 'd3 . 'target-ans . 'com . root, cname, testTTL, 'e3 . 'target-ans . 'com . root >
+    < 'e3 . 'target-ans . 'com . root, cname, testTTL, 'f3 . 'target-ans . 'com . root >
+    < 'f3 . 'target-ans . 'com . root, cname, testTTL, 'g3 . 'target-ans . 'com . root >
+    < 'g3 . 'target-ans . 'com . root, cname, testTTL, 'h3 . 'target-ans . 'com . root >
+    < 'h3 . 'target-ans . 'com . root, cname, testTTL, 'i3 . 'target-ans . 'com . root >
+    < 'i3 . 'target-ans . 'com . root, cname, testTTL, 'j3 . 'target-ans . 'com . root >
+    < 'j3 . 'target-ans . 'com . root, cname, testTTL, 'k3 . 'target-ans . 'com . root >
+    < 'k3 . 'target-ans . 'com . root, cname, testTTL, 'l3 . 'target-ans . 'com . root >
+    < 'l3 . 'target-ans . 'com . root, cname, testTTL, 'm3 . 'target-ans . 'com . root >
+    < 'm3 . 'target-ans . 'com . root, cname, testTTL, 'n3 . 'target-ans . 'com . root >
+    < 'n3 . 'target-ans . 'com . root, cname, testTTL, 'o3 . 'target-ans . 'com . root >
+    < 'o3 . 'target-ans . 'com . root, cname, testTTL, 'p3 . 'target-ans . 'com . root >
+    < 'p3 . 'target-ans . 'com . root, cname, testTTL, 'q3 . 'target-ans . 'com . root >
+
+    < 'a4 . 'target-ans . 'com . root, cname, testTTL, 'b4 . 'target-ans . 'com . root >
+    < 'b4 . 'target-ans . 'com . root, cname, testTTL, 'c4 . 'target-ans . 'com . root >
+    < 'c4 . 'target-ans . 'com . root, cname, testTTL, 'd4 . 'target-ans . 'com . root >
+    < 'd4 . 'target-ans . 'com . root, cname, testTTL, 'e4 . 'target-ans . 'com . root >
+    < 'e4 . 'target-ans . 'com . root, cname, testTTL, 'f4 . 'target-ans . 'com . root >
+    < 'f4 . 'target-ans . 'com . root, cname, testTTL, 'g4 . 'target-ans . 'com . root >
+    < 'g4 . 'target-ans . 'com . root, cname, testTTL, 'h4 . 'target-ans . 'com . root >
+    < 'h4 . 'target-ans . 'com . root, cname, testTTL, 'i4 . 'target-ans . 'com . root >
+    < 'i4 . 'target-ans . 'com . root, cname, testTTL, 'j4 . 'target-ans . 'com . root >
+    < 'j4 . 'target-ans . 'com . root, cname, testTTL, 'k4 . 'target-ans . 'com . root >
+    < 'k4 . 'target-ans . 'com . root, cname, testTTL, 'l4 . 'target-ans . 'com . root >
+    < 'l4 . 'target-ans . 'com . root, cname, testTTL, 'm4 . 'target-ans . 'com . root >
+    < 'm4 . 'target-ans . 'com . root, cname, testTTL, 'n4 . 'target-ans . 'com . root >
+    < 'n4 . 'target-ans . 'com . root, cname, testTTL, 'o4 . 'target-ans . 'com . root >
+    < 'o4 . 'target-ans . 'com . root, cname, testTTL, 'p4 . 'target-ans . 'com . root >
+    < 'p4 . 'target-ans . 'com . root, cname, testTTL, 'q4 . 'target-ans . 'com . root >
+
+    < 'a5 . 'target-ans . 'com . root, cname, testTTL, 'b5 . 'target-ans . 'com . root >
+    < 'b5 . 'target-ans . 'com . root, cname, testTTL, 'c5 . 'target-ans . 'com . root >
+    < 'c5 . 'target-ans . 'com . root, cname, testTTL, 'd5 . 'target-ans . 'com . root >
+    < 'd5 . 'target-ans . 'com . root, cname, testTTL, 'e5 . 'target-ans . 'com . root >
+    < 'e5 . 'target-ans . 'com . root, cname, testTTL, 'f5 . 'target-ans . 'com . root >
+    < 'f5 . 'target-ans . 'com . root, cname, testTTL, 'g5 . 'target-ans . 'com . root >
+    < 'g5 . 'target-ans . 'com . root, cname, testTTL, 'h5 . 'target-ans . 'com . root >
+    < 'h5 . 'target-ans . 'com . root, cname, testTTL, 'i5 . 'target-ans . 'com . root >
+    < 'i5 . 'target-ans . 'com . root, cname, testTTL, 'j5 . 'target-ans . 'com . root >
+    < 'j5 . 'target-ans . 'com . root, cname, testTTL, 'k5 . 'target-ans . 'com . root >
+    < 'k5 . 'target-ans . 'com . root, cname, testTTL, 'l5 . 'target-ans . 'com . root >
+    < 'l5 . 'target-ans . 'com . root, cname, testTTL, 'm5 . 'target-ans . 'com . root >
+    < 'm5 . 'target-ans . 'com . root, cname, testTTL, 'n5 . 'target-ans . 'com . root >
+    < 'n5 . 'target-ans . 'com . root, cname, testTTL, 'o5 . 'target-ans . 'com . root >
+    < 'o5 . 'target-ans . 'com . root, cname, testTTL, 'p5 . 'target-ans . 'com . root >
+    < 'p5 . 'target-ans . 'com . root, cname, testTTL, 'q5 . 'target-ans . 'com . root >
+
+    < 'a6 . 'target-ans . 'com . root, cname, testTTL, 'b6 . 'target-ans . 'com . root >
+    < 'b6 . 'target-ans . 'com . root, cname, testTTL, 'c6 . 'target-ans . 'com . root >
+    < 'c6 . 'target-ans . 'com . root, cname, testTTL, 'd6 . 'target-ans . 'com . root >
+    < 'd6 . 'target-ans . 'com . root, cname, testTTL, 'e6 . 'target-ans . 'com . root >
+    < 'e6 . 'target-ans . 'com . root, cname, testTTL, 'f6 . 'target-ans . 'com . root >
+    < 'f6 . 'target-ans . 'com . root, cname, testTTL, 'g6 . 'target-ans . 'com . root >
+    < 'g6 . 'target-ans . 'com . root, cname, testTTL, 'h6 . 'target-ans . 'com . root >
+    < 'h6 . 'target-ans . 'com . root, cname, testTTL, 'i6 . 'target-ans . 'com . root >
+    < 'i6 . 'target-ans . 'com . root, cname, testTTL, 'j6 . 'target-ans . 'com . root >
+    < 'j6 . 'target-ans . 'com . root, cname, testTTL, 'k6 . 'target-ans . 'com . root >
+    < 'k6 . 'target-ans . 'com . root, cname, testTTL, 'l6 . 'target-ans . 'com . root >
+    < 'l6 . 'target-ans . 'com . root, cname, testTTL, 'm6 . 'target-ans . 'com . root >
+    < 'm6 . 'target-ans . 'com . root, cname, testTTL, 'n6 . 'target-ans . 'com . root >
+    < 'n6 . 'target-ans . 'com . root, cname, testTTL, 'o6 . 'target-ans . 'com . root >
+    < 'o6 . 'target-ans . 'com . root, cname, testTTL, 'p6 . 'target-ans . 'com . root >
+    < 'p6 . 'target-ans . 'com . root, cname, testTTL, 'q6 . 'target-ans . 'com . root >
+
+    < 'a7 . 'target-ans . 'com . root, cname, testTTL, 'b7 . 'target-ans . 'com . root >
+    < 'b7 . 'target-ans . 'com . root, cname, testTTL, 'c7 . 'target-ans . 'com . root >
+    < 'c7 . 'target-ans . 'com . root, cname, testTTL, 'd7 . 'target-ans . 'com . root >
+    < 'd7 . 'target-ans . 'com . root, cname, testTTL, 'e7 . 'target-ans . 'com . root >
+    < 'e7 . 'target-ans . 'com . root, cname, testTTL, 'f7 . 'target-ans . 'com . root >
+    < 'f7 . 'target-ans . 'com . root, cname, testTTL, 'g7 . 'target-ans . 'com . root >
+    < 'g7 . 'target-ans . 'com . root, cname, testTTL, 'h7 . 'target-ans . 'com . root >
+    < 'h7 . 'target-ans . 'com . root, cname, testTTL, 'i7 . 'target-ans . 'com . root >
+    < 'i7 . 'target-ans . 'com . root, cname, testTTL, 'j7 . 'target-ans . 'com . root >
+    < 'j7 . 'target-ans . 'com . root, cname, testTTL, 'k7 . 'target-ans . 'com . root >
+    < 'k7 . 'target-ans . 'com . root, cname, testTTL, 'l7 . 'target-ans . 'com . root >
+    < 'l7 . 'target-ans . 'com . root, cname, testTTL, 'm7 . 'target-ans . 'com . root >
+    < 'm7 . 'target-ans . 'com . root, cname, testTTL, 'n7 . 'target-ans . 'com . root >
+    < 'n7 . 'target-ans . 'com . root, cname, testTTL, 'o7 . 'target-ans . 'com . root >
+    < 'o7 . 'target-ans . 'com . root, cname, testTTL, 'p7 . 'target-ans . 'com . root >
+    < 'p7 . 'target-ans . 'com . root, cname, testTTL, 'q7 . 'target-ans . 'com . root >
+
+    < 'a8 . 'target-ans . 'com . root, cname, testTTL, 'b8 . 'target-ans . 'com . root >
+    < 'b8 . 'target-ans . 'com . root, cname, testTTL, 'c8 . 'target-ans . 'com . root >
+    < 'c8 . 'target-ans . 'com . root, cname, testTTL, 'd8 . 'target-ans . 'com . root >
+    < 'd8 . 'target-ans . 'com . root, cname, testTTL, 'e8 . 'target-ans . 'com . root >
+    < 'e8 . 'target-ans . 'com . root, cname, testTTL, 'f8 . 'target-ans . 'com . root >
+    < 'f8 . 'target-ans . 'com . root, cname, testTTL, 'g8 . 'target-ans . 'com . root >
+    < 'g8 . 'target-ans . 'com . root, cname, testTTL, 'h8 . 'target-ans . 'com . root >
+    < 'h8 . 'target-ans . 'com . root, cname, testTTL, 'i8 . 'target-ans . 'com . root >
+    < 'i8 . 'target-ans . 'com . root, cname, testTTL, 'j8 . 'target-ans . 'com . root >
+    < 'j8 . 'target-ans . 'com . root, cname, testTTL, 'k8 . 'target-ans . 'com . root >
+    < 'k8 . 'target-ans . 'com . root, cname, testTTL, 'l8 . 'target-ans . 'com . root >
+    < 'l8 . 'target-ans . 'com . root, cname, testTTL, 'm8 . 'target-ans . 'com . root >
+    < 'm8 . 'target-ans . 'com . root, cname, testTTL, 'n8 . 'target-ans . 'com . root >
+    < 'n8 . 'target-ans . 'com . root, cname, testTTL, 'o8 . 'target-ans . 'com . root >
+    < 'o8 . 'target-ans . 'com . root, cname, testTTL, 'p8 . 'target-ans . 'com . root >
+    < 'p8 . 'target-ans . 'com . root, cname, testTTL, 'q8 . 'target-ans . 'com . root >
+
+    < 'a9 . 'target-ans . 'com . root, cname, testTTL, 'b9 . 'target-ans . 'com . root >
+    < 'b9 . 'target-ans . 'com . root, cname, testTTL, 'c9 . 'target-ans . 'com . root >
+    < 'c9 . 'target-ans . 'com . root, cname, testTTL, 'd9 . 'target-ans . 'com . root >
+    < 'd9 . 'target-ans . 'com . root, cname, testTTL, 'e9 . 'target-ans . 'com . root >
+    < 'e9 . 'target-ans . 'com . root, cname, testTTL, 'f9 . 'target-ans . 'com . root >
+    < 'f9 . 'target-ans . 'com . root, cname, testTTL, 'g9 . 'target-ans . 'com . root >
+    < 'g9 . 'target-ans . 'com . root, cname, testTTL, 'h9 . 'target-ans . 'com . root >
+    < 'h9 . 'target-ans . 'com . root, cname, testTTL, 'i9 . 'target-ans . 'com . root >
+    < 'i9 . 'target-ans . 'com . root, cname, testTTL, 'j9 . 'target-ans . 'com . root >
+    < 'j9 . 'target-ans . 'com . root, cname, testTTL, 'k9 . 'target-ans . 'com . root >
+    < 'k9 . 'target-ans . 'com . root, cname, testTTL, 'l9 . 'target-ans . 'com . root >
+    < 'l9 . 'target-ans . 'com . root, cname, testTTL, 'm9 . 'target-ans . 'com . root >
+    < 'm9 . 'target-ans . 'com . root, cname, testTTL, 'n9 . 'target-ans . 'com . root >
+    < 'n9 . 'target-ans . 'com . root, cname, testTTL, 'o9 . 'target-ans . 'com . root >
+    < 'o9 . 'target-ans . 'com . root, cname, testTTL, 'p9 . 'target-ans . 'com . root >
+    < 'p9 . 'target-ans . 'com . root, cname, testTTL, 'q9 . 'target-ans . 'com . root >
+
+    < 'a10 . 'target-ans . 'com . root, cname, testTTL, 'b10 . 'target-ans . 'com . root >
+    < 'b10 . 'target-ans . 'com . root, cname, testTTL, 'c10 . 'target-ans . 'com . root >
+    < 'c10 . 'target-ans . 'com . root, cname, testTTL, 'd10 . 'target-ans . 'com . root >
+    < 'd10 . 'target-ans . 'com . root, cname, testTTL, 'e10 . 'target-ans . 'com . root >
+    < 'e10 . 'target-ans . 'com . root, cname, testTTL, 'f10 . 'target-ans . 'com . root >
+    < 'f10 . 'target-ans . 'com . root, cname, testTTL, 'g10 . 'target-ans . 'com . root >
+    < 'g10 . 'target-ans . 'com . root, cname, testTTL, 'h10 . 'target-ans . 'com . root >
+    < 'h10 . 'target-ans . 'com . root, cname, testTTL, 'i10 . 'target-ans . 'com . root >
+    < 'i10 . 'target-ans . 'com . root, cname, testTTL, 'j10 . 'target-ans . 'com . root >
+    < 'j10 . 'target-ans . 'com . root, cname, testTTL, 'k10 . 'target-ans . 'com . root >
+    < 'k10 . 'target-ans . 'com . root, cname, testTTL, 'l10 . 'target-ans . 'com . root >
+    < 'l10 . 'target-ans . 'com . root, cname, testTTL, 'm10 . 'target-ans . 'com . root >
+    < 'm10 . 'target-ans . 'com . root, cname, testTTL, 'n10 . 'target-ans . 'com . root >
+    < 'n10 . 'target-ans . 'com . root, cname, testTTL, 'o10 . 'target-ans . 'com . root >
+    < 'o10 . 'target-ans . 'com . root, cname, testTTL, 'p10 . 'target-ans . 'com . root >
+    < 'p10 . 'target-ans . 'com . root, cname, testTTL, 'q10 . 'target-ans . 'com . root >
+    .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+    --- malicious delegation
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a1 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a2 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a3 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a4 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a5 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a6 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a7 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a8 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a9 . 'target-ans . 'com . root >
+    < 'del . 'intermediary . 'com . root, ns, testTTL, 'a10 . 'target-ans . 'com . root >
+    .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the name servers of target-ans.com and intermediary.com are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- target-ans.com authoritative name server
+    < addrNStargetANS : Nameserver | db: zoneTargetANS, queue: nilQueue >
+    --- intermediary.com authoritative name server
+    < addrNSintermediary : Nameserver | db: zoneIntermediary, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+
+rew msgAmpFactor(cAddr, addrNStargetANS ; addrNSintermediary ; addrNScom, initConfig) .
+rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .
+rew msgAmpFactor(cAddr, addrNSintermediary, initConfig) .
+rew msgAmpFactor(cAddr, addrNScom, initConfig) .

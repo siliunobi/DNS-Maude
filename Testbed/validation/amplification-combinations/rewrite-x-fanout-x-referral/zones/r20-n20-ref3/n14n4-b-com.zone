@@ -1,0 +1,6 @@
+$TTL 3600
+@				IN		SOA		server.n14n4.b.com. username.n14n4.b.com. (2006032201 7200 3600 1209600 36000)
+				IN		NS		n14n4n1.c.com.
+n14n4n1.c.com.		IN		A		172.20.0.6
+
+n14n4.b.com.		IN		A		172.20.0.6

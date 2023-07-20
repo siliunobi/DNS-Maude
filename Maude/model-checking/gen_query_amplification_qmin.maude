@@ -1,0 +1,105 @@
+load preds
+load ../src/common/label_graph
+load ../test/nondet-model/test_helpers
+
+--- This is a combination of variant (b) of the NXNS attack and an attack based on QNAME minimization amplification.
+--- The victim is an authoritative server for a SLD zone.
+--- For the attack to work, the following requirements need to be met:
+---  * The victim zone (a SLD) must contain a wildcard record of arbitrary type.
+---  * The resolver must perform QNAME minimization even for internally generated queries to resolve name server
+---    addresses.
+---  * The resolver must be susceptible to an NXNS attack at least to some degree.
+
+mod TEST is
+  pr DNS-PREDS .
+  inc MODEL-CHECKER .
+  inc LTL-SIMPLIFIER .
+
+  inc TEST-HELPERS + LABEL-GRAPH .
+
+  eq monitorQueryLog? = true .
+
+  op testTTL : -> Float .
+  eq testTTL = 1.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'fake10 . 'fake9 . 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 .
+          'victim . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'victim . 'com . root, ns, testTTL, 'ns . 'com . root >, 1)
+    cacheEntry(< 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim >, 1) .
+
+  ops addrRoot addrNScom addrNSvictim : -> Address .
+
+  ops zoneRoot zoneCom zoneVictim : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim > . --- glue
+
+  eq zoneVictim =
+    --- authoritative data
+    < 'victim . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim >
+    < wildcard . 'victim . 'com . root, mx, testTTL, nullAddr > . --- a wildcard record of arbitrary type
+
+  op initConfigWithoutClient : -> Config .
+  eq initConfigWithoutClient =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < rAddr : Resolver | cache: cache, --- assuming the victim.com name servers are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- victim.com authoritative name server
+    < addrNSvictim : Nameserver | db: zoneVictim, queue: nilQueue > .
+
+  op initConfig : -> Config .
+  eq initConfig =
+    initConfigWithoutClient
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr > .
+
+endm
+
+--- rew initConfig .
+--- rew msgAmpFactorTerminal(cAddr, addrNSvictim, initConfig) .
+
+--- search [1] initConfigWithNonDetQuery(initConfigWithoutClient, rAddr, cAddr) =>*
+---   C:Config such that msgAmpFactorTerminal(cAddr, addrNSvictim, C:Config) > 5.0 .
+
+red modelCheck(initConfigWithNonDetQuery(initConfigWithoutClient, rAddr, cAddr),
+               [] ~ propMsgAmpFactorGT(cAddr, addrNSvictim, 5.0)) .

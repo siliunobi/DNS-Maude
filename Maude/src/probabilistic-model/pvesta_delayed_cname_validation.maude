@@ -1,0 +1,152 @@
+load dns
+load sampler
+load properties
+load ../../attacker-models/probabilistic-model/attacker
+
+--- This is the initial configuration corresponding to the scenario from attack validation on real
+--- implementations for the delayed CNAME validation attack.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER .
+
+  eq rsvTimeout? = false .
+  eq rsvTimeout = 1000.0 .
+
+  --- enable overall timeout
+  --- eq rsvOverallTimeout? = true .
+  eq rsvOverallTimeout = 12000.0 .
+
+  eq configWorkBudget = 5000 .
+
+  --- enable CNAME validation
+  eq rsvMinCacheCredClient = 5 .
+  eq rsvMinCacheCredResolver = 5 .
+
+  --- use A type to obfuscate original QTYPE
+  eq qminQTYPE = a .
+
+  --- nameserver delay
+  op testNsDelay : -> Float .
+  eq testNsDelay = 0.0 .
+
+  --- prevent cache entries from expiring
+  op testTTL : -> Float .
+  eq testTTL = limit .
+
+  op q : -> Query .
+  eq q = query(1, 'a1 . 'example . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'example . 'com . root, ns, testTTL, 'ns . 'example . 'com . root >, 1)
+    cacheEntry(< 'ns . 'example . 'com . root, a, testTTL, addrNSexample >, 1) .
+
+  ops addrRoot addrNScom addrNSexample : -> Address .
+
+  ops zoneRoot zoneCom zoneExampleCom : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'com . root >
+    < 'ns . 'example . 'com . root, a, testTTL, addrNSexample > . --- glue
+
+  eq zoneExampleCom =
+    --- authoritative data
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'com . root >
+    < 'ns . 'example . 'com . root, a, testTTL, addrNSexample >
+
+    < 'a1 . 'example . 'com . root, cname, testTTL, 'b1 . 'example . 'com . root >
+    < 'b1 . 'example . 'com . root, cname, testTTL, 'c1 . 'example . 'com . root >
+    < 'c1 . 'example . 'com . root, cname, testTTL, 'd1 . 'example . 'com . root >
+    < 'd1 . 'example . 'com . root, cname, testTTL, 'e1 . 'example . 'com . root >
+    < 'e1 . 'example . 'com . root, cname, testTTL, 'f1 . 'example . 'com . root >
+    < 'f1 . 'example . 'com . root, cname, testTTL, 'g1 . 'example . 'com . root >
+    < 'g1 . 'example . 'com . root, cname, testTTL, 'h1 . 'example . 'com . root >
+    < 'h1 . 'example . 'com . root, cname, testTTL, 'i1 . 'example . 'com . root >
+    < 'i1 . 'example . 'com . root, cname, testTTL, 'j1 . 'example . 'com . root >
+    < 'j1 . 'example . 'com . root, cname, testTTL, 'k1 . 'example . 'com . root >
+    < 'k1 . 'example . 'com . root, cname, testTTL, 'l1 . 'example . 'com . root >
+    < 'l1 . 'example . 'com . root, cname, testTTL, 'm1 . 'example . 'com . root >
+    < 'm1 . 'example . 'com . root, cname, testTTL, 'n1 . 'example . 'com . root >
+    < 'n1 . 'example . 'com . root, cname, testTTL, 'o1 . 'example . 'com . root >
+    < 'o1 . 'example . 'com . root, cname, testTTL, 'p1 . 'example . 'com . root >
+    < 'p1 . 'example . 'com . root, cname, testTTL, 'q1 . 'example . 'com . root >
+
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'a1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'b1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'b1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'c1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'c1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'd1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'd1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'e1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'e1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'f1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'f1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'g1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'g1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'h1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'h1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'i1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'i1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'j1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'j1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'k1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'k1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'l1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'l1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'm1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'm1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'n1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'n1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'o1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'o1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'p1 . 'example . 'com . root >
+    < 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'p1 . 'example . 'com . root, cname, testTTL, 'lab12 . 'lab11 . 'lab10 . 'lab9 . 'lab8 . 'lab7 . 'lab6 . 'lab5 . 'lab4 . 'lab3 . 'lab2 . 'lab1 . 'q1 . 'example . 'com . root >
+    .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the name servers of example.com and intermediary.com are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : DelayedNameserver | db: zoneRoot, nsDelay: testNsDelay, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : DelayedNameserver | db: zoneCom, nsDelay: testNsDelay, queue: nilQueue >
+    --- example.com authoritative name server
+    < addrNSexample : DelayedNameserver | db: zoneExampleCom, nsDelay: testNsDelay, queue: nilQueue > .
+
+  ***** to be used by PVeStA
+  var C : Config .
+  eq val(0, C) = avgQueryDuration(C) .
+
+endm
+
+set clear rules off .
+
+--- rew initConfig .
+--- rew avgQueryDuration(initConfig) .
+--- rew avgQueryDuration(initConfig) .
+--- rew avgQueryDuration(initConfig) .
+--- rew avgQueryDuration(initConfig) .
+--- rew avgQueryDuration(initConfig) .
+--- rew avgQueryDuration(initConfig) .

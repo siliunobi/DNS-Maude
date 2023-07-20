@@ -1,0 +1,33 @@
+$TTL 3600
+@				IN		SOA		server.c.com. username.c.com. (2006032201 7200 3600 1209600 36000)
+				IN		NS		ns.c.com.
+ns.c.com.		IN		A		172.20.0.5
+
+n0n1n1.c.com.		IN		NS		n0n1n2.c.com.
+n0n1n2.c.com.		IN		NS		n0n1n3.c.com.
+n0n1n3.c.com.		IN		NS		n0n1n4.c.com.
+n0n1n4.c.com.		IN		NS		n0n1n5.c.com.
+n0n1n5.c.com.		IN		A		172.20.0.6
+
+n0n2n1.c.com.		IN		NS		n0n2n2.c.com.
+n0n2n2.c.com.		IN		NS		n0n2n3.c.com.
+n0n2n3.c.com.		IN		NS		n0n2n4.c.com.
+n0n2n4.c.com.		IN		NS		n0n2n5.c.com.
+n0n2n5.c.com.		IN		A		172.20.0.6
+
+
+
+n1n1n1.c.com.		IN		NS		n1n1n2.c.com.
+n1n1n2.c.com.		IN		NS		n1n1n3.c.com.
+n1n1n3.c.com.		IN		NS		n1n1n4.c.com.
+n1n1n4.c.com.		IN		NS		n1n1n5.c.com.
+n1n1n5.c.com.		IN		A		172.20.0.6
+
+n1n2n1.c.com.		IN		NS		n1n2n2.c.com.
+n1n2n2.c.com.		IN		NS		n1n2n3.c.com.
+n1n2n3.c.com.		IN		NS		n1n2n4.c.com.
+n1n2n4.c.com.		IN		NS		n1n2n5.c.com.
+n1n2n5.c.com.		IN		A		172.20.0.6
+
+
+

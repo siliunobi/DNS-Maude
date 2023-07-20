@@ -1,0 +1,7 @@
+12-Jan-2023 03:59:21.534 info: client @0x7effe4005d08 172.20.0.15#33119 (sub.a5.target.com): query: sub.a5.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:21.534 info: client @0x7effe8002f58 172.20.0.15#40615 (sub.a2.target.com): query: sub.a2.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:21.534 info: client @0x7effc0007bd8 172.20.0.15#53392 (sub.a3.target.com): query: sub.a3.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:21.534 info: client @0x7effc80018f8 172.20.0.15#56903 (sub.a4.target.com): query: sub.a4.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:21.534 info: client @0x7effc8006ef8 172.20.0.15#37458 (sub.a1.target.com): query: sub.a1.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:21.544 info: client @0x7effe4005d08 172.20.0.15#46056 (sub.a6.target.com): query: sub.a6.target.com IN A -E(0)DCV (172.20.0.5)
+12-Jan-2023 03:59:21.544 info: client @0x7effe8002f58 172.20.0.15#40117 (sub.a7.target.com): query: sub.a7.target.com IN A -E(0)DCV (172.20.0.5)

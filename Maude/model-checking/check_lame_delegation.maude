@@ -1,0 +1,101 @@
+load preds
+load ../test/nondet-model/test_helpers
+
+--- In this example, one of the name servers for zone example.com (ns2.example.com) is not properly configured.
+--- It does not have the example.com zone loaded. However, the parent zone name servers provide delegations to it,
+--- a so-called "lame delegation".
+--- Note that depending on which of the two example.com name servers the resolver chooses, resolution may work fine.
+
+mod DNS-CHECK is
+  pr DNS-PREDS .
+  inc MODEL-CHECKER .
+  inc LTL-SIMPLIFIER .
+
+  inc TEST-HELPERS .
+
+  var QS : List{Query} .
+  var CACHE : Cache .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'www . 'example . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNS1com addrNS2com addrNS1example addrNS2example : -> Address .
+
+  ops dbRoot dbNScom dbNSexample dbNSexample2 : -> List{Record} .
+  
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+    
+    --- non-authoritative data
+    < 'com . root, ns, testTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, testTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, testTTL, addrNS1com >   --- glue record
+    < 'ns2 . 'com . root, a, testTTL, addrNS2com > . --- glue record
+
+  eq dbNScom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < 'com . root, ns, testTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, testTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, testTTL, addrNS1com >
+    < 'ns2 . 'com . root, a, testTTL, addrNS2com >
+
+    --- non-authoritative data
+    < 'example . 'com . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < 'ns1 . 'example . 'com . root, a, testTTL, addrNS1example > --- glue record
+    < 'example . 'com . root, ns, testTTL, 'ns2 . 'example . 'com . root >
+    < 'ns2 . 'example . 'com . root, a, testTTL, addrNS2example > . --- glue record
+
+  eq dbNSexample =
+    --- authoritative data
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'example . 'com . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, testTTL, 'ns2 . 'example . 'com . root >
+    
+    < 'ns1 . 'example . 'com . root, a, testTTL, addrNS1example >
+    < 'ns2 . 'example . 'com . root, a, testTTL, addrNS2example >
+    < 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 > .
+
+  op initConfig : List{Query} Cache -> Config .
+  eq initConfig(QS, CACHE) =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < cAddr : Client | queries: QS, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: CACHE,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Name servers
+    < addrRoot : Nameserver | db: dbRoot, queue: nilQueue >
+    < addrNS1com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNS2com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNS1example : Nameserver | db: dbNSexample, queue: nilQueue >
+    < addrNS2example : Nameserver | db: nil, queue: nilQueue > . --- note that it does not have a zone loaded!
+
+endm
+
+rew initConfig(q, nilCache) .
+
+--- There is an execution reaching a final state without encountering the lame delegation.
+search [1] initConfig(q, nilCache) =>! C:Config such that not(hasLameDelegation(C:Config)) and reachedTerminalConfig(C:Config) .
+
+--- There is an execution that encounters the lame delegation.
+search [1] initConfig(q, nilCache) =>* C:Config such that hasLameDelegation(C:Config) .
+
+red modelCheck(initConfig(q, nilCache), [] ~ propLameDelegation) .

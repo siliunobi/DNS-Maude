@@ -1,0 +1,54 @@
+load ../common/test_helpers
+load ../../src/probabilistic-model/apmaude
+load ../../src/common/prelim
+
+mod TEST-HELPERS is
+  inc TEST-HELPERS-COMMON + SCHEDULER + MONITOR .
+
+  var C : Config .
+  var AC : ActorConfig .
+  var ADDR : Address .
+  var F : Float .
+  vars N N' : Nat .
+  var TARL : TupleAddrRespList .
+
+  --- Returns a Monitor with all defined attributes, initialized to some initial values.
+  op initMonitor : Address -> Actor .
+  eq initMonitor(ADDR) =
+    < ADDR : Monitor | init: false,
+                       msgsRcv: emptyIAF,
+                       msgsSent: emptyIAF,
+                       totalRcv: emptyAF,
+                       totalSent: emptyAF,
+                       clientQStartTime: emptyIF,
+                       clientQEndTime: emptyIF,
+                       idsObserved: nilIdL,
+                       nsQueryLog: nilTAQL,
+                       nsRespLog: nilTARL,
+                       clQueryLog: nilTAQL,
+                       clRespLog: nilTARL,
+                       rsvRewriteLog: nilTNRL,
+                       rsvSlistLog: nilTSAL,
+                       clientQSent: 0,
+                       clientQAnswered: 0,
+                       clientQServfail: 0,
+                       nsRecs: eptTARecsS > .
+
+  --- Returns true if there are no ScheduleMsgs, neither in the Scheduler nor on the top level of the configuration,
+  ---   and additionally all resolvers and clients are in a "clean" state.
+  op reachedTerminalConfig : Config -> [Bool] .
+  eq reachedTerminalConfig({ F | nil } AC) = resolversDone(AC) and clientsDone(AC) .
+
+  --- Returns true if additionally the response counts match the expected result.
+  op reachedTerminalConfigWithResponseCounts : Config Nat Nat -> [Bool] .
+  ceq reachedTerminalConfigWithResponseCounts(C, N, N')
+    = expectedResponseCounts(C, N, N')
+    if reachedTerminalConfig(C) .
+
+  --- Returns ture if the client response log matches the expected result.
+  op reachedTerminalConfigWithResponseLog : Config TupleAddrRespList -> [Bool] .
+  ceq reachedTerminalConfigWithResponseLog(C, TARL)
+    = expectedClRespLog(C, TARL)
+    if reachedTerminalConfig(C) .
+
+endm

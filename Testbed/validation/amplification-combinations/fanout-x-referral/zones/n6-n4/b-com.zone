@@ -1,0 +1,49 @@
+$TTL 3600
+@                       IN      SOA     server.b.com. username.b.com. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.b.com.
+ns.b.com.         IN      A       172.20.0.5
+
+
+
+
+n1.b.com. NS n1n1.b.com.
+    
+n1n1.b.com. NS n1n2.b.com.
+    
+n1n2.b.com. NS n1n3.b.com.
+    
+
+n2.b.com. NS n2n1.b.com.
+    
+n2n1.b.com. NS n2n2.b.com.
+    
+n2n2.b.com. NS n2n3.b.com.
+    
+
+n3.b.com. NS n3n1.b.com.
+    
+n3n1.b.com. NS n3n2.b.com.
+    
+n3n2.b.com. NS n3n3.b.com.
+    
+
+n4.b.com. NS n4n1.b.com.
+    
+n4n1.b.com. NS n4n2.b.com.
+    
+n4n2.b.com. NS n4n3.b.com.
+    
+
+n5.b.com. NS n5n1.b.com.
+    
+n5n1.b.com. NS n5n2.b.com.
+    
+n5n2.b.com. NS n5n3.b.com.
+    
+
+n6.b.com. NS n6n1.b.com.
+    
+n6n1.b.com. NS n6n2.b.com.
+    
+n6n2.b.com. NS n6n3.b.com.
+    

@@ -1,0 +1,155 @@
+--- Zones for Subqueries + CNAME scrubbing + QMIN
+--- 10 NS delegations, 10 labels for CNAME chains of length 9
+--- For the query : 'del . 'intermediary . 'com . root   (
+
+
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >  --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+
+
+	< 'zz0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g0 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g0 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h0 . 'target-ans . 'com . root >
+
+
+	< 'zz1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g1 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g1 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h1 . 'target-ans . 'com . root >
+
+
+	< 'zz2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g2 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g2 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h2 . 'target-ans . 'com . root >
+
+
+	< 'zz3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g3 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g3 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h3 . 'target-ans . 'com . root >
+
+
+	< 'zz4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g4 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g4 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h4 . 'target-ans . 'com . root >
+
+
+	< 'zz5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g5 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g5 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h5 . 'target-ans . 'com . root >
+
+
+	< 'zz6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g6 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g6 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h6 . 'target-ans . 'com . root >
+
+
+	< 'zz7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g7 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g7 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h7 . 'target-ans . 'com . root >
+
+
+	< 'zz8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g8 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g8 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h8 . 'target-ans . 'com . root >
+
+
+	< 'zz9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'a9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'b9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'c9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'd9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'e9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'f9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g9 . 'target-ans . 'com . root >
+	< 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'g9 . 'target-ans . 'com . root , cname, testTTL, 'fake8 . 'fake7 . 'fake6 . 'fake5 . 'fake4 . 'fake3 . 'fake2 . 'fake1 . 'fake0 . 'h9 . 'target-ans . 'com . root >
+
+    .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+--- Malicious delegation
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz0 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz1 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz2 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz3 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz4 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz5 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz6 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz7 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz8 . 'target-ans . 'com . root >
+	< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz9 . 'target-ans . 'com . root >
+
+    .

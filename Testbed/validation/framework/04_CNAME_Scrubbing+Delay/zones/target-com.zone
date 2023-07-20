@@ -1,0 +1,23 @@
+$TTL 3600
+@                       IN      SOA     server.target.com. username.target.com. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.target.com.
+                        IN      A       1.2.3.4
+ns.target.com.         IN      A       172.20.0.5
+
+
+a1.target.com.         IN      CNAME   b1.target.com.
+b1.target.com.         IN      CNAME   c1.target.com.
+c1.target.com.         IN      CNAME   d1.target.com.
+d1.target.com.         IN      CNAME   e1.target.com.
+e1.target.com.         IN      CNAME   f1.target.com.
+f1.target.com.         IN      CNAME   g1.target.com.
+g1.target.com.         IN      CNAME   h1.target.com.
+h1.target.com.         IN      CNAME   i1.target.com.
+i1.target.com.         IN      CNAME   j1.target.com.
+j1.target.com.         IN      CNAME   k1.target.com.
+k1.target.com.         IN      CNAME   l1.target.com.
+l1.target.com.         IN      CNAME   m1.target.com.
+m1.target.com.         IN      CNAME   n1.target.com.
+n1.target.com.         IN      CNAME   o1.target.com.
+o1.target.com.         IN      CNAME   p1.target.com.
+p1.target.com.         IN      CNAME   q1.target.com.

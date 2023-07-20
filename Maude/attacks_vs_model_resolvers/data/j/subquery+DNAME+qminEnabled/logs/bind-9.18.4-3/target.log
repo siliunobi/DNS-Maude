@@ -1,0 +1,3 @@
+12-Jan-2023 03:59:15.054 info: client @0x7effc00013b8 172.20.0.15#48712 (sub.a1.target.com): query: sub.a1.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:15.064 info: client @0x7effdc0081c8 172.20.0.15#50533 (sub.a3.target.com): query: sub.a3.target.com IN A -E(0)DCK (172.20.0.5)
+12-Jan-2023 03:59:15.064 info: client @0x7effd4001ef8 172.20.0.15#56171 (sub.a2.target.com): query: sub.a2.target.com IN A -E(0)DCK (172.20.0.5)

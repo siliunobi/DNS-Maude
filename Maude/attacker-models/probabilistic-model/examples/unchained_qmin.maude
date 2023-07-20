@@ -1,0 +1,118 @@
+load ../../../src/probabilistic-model/dns
+load ../../../src/probabilistic-model/sampler
+load ../../../src/probabilistic-model/properties
+load ../attacker
+
+--- This is a combination of the DNS Unchained attack and QNAME minimization.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER .
+
+  eq rsvTimeout? = true .
+  eq rsvTimeout = 1000.0 .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+  ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+  ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS > --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    --- half of the CNAME chain (every second record); note the TTL of zero
+    unchainedQminRecordsTarget('target-ans . 'com . root, 'intermediary . 'com . root, 10, 0, 5, 0.0) .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+    --- the other half of the CNAME chain
+    unchainedQminRecordsIntermediary('target-ans . 'com . root, 'intermediary . 'com . root, 10, 0, 5, testTTL) .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: unchainedQminQuery('target-ans . 'com . root, 10, 0, 5),
+                       resolver: rAddr,
+                       notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the name servers of target-ans.com and intermediary.com are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- target-ans.com authoritative name server
+    < addrNStargetANS : Nameserver | db: zoneTargetANS, queue: nilQueue >
+    --- intermediary.com authoritative name server
+    < addrNSintermediary : Nameserver | db: zoneIntermediary, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew msgAmpFactor(cAddr, addrNStargetANS, initConfig) .

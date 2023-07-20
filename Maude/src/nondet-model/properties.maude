@@ -1,0 +1,395 @@
+load _aux
+load ../../test/nondet-model/test_helpers
+
+mod PROPERTIES is
+  inc AUX + TEST-HELPERS .
+
+  vars C C' : Config .
+  vars ADDR ADDR' ADDR'' : Address .
+  vars ID ID' ID'' : Id .
+  vars NAME NAME' NAME'' : Name .
+  vars RTYPE RTYPE' : RType .
+  var RDATA : RData .
+  var IAF : IdAddrFloatMap .
+  var AF : AddrFloatMap .
+  vars F NUM TTL : Float .
+  var IALMAP : IdAddrListMap .
+  vars AL AL' : AddrList .
+  var TAQ : TupleAddrQuery .
+  var TAQL : TupleAddrQueryList .
+  var TAR : TupleAddrResp .
+  vars TARL TARL' : TupleAddrRespList .
+  var TNRL : TupleNameRecsList .
+  var TSAL : TupleSlistArgsList .
+  vars TARecsS TARecsS' : TupleAddrRecsSet .
+  vars STATE STATE' : AttributeSet .
+  var AC : ActorConfig .
+  vars N N' RCODE RCODE' : Nat .
+  var QS : List{Query} .
+  var R : Record .
+  vars RS RS' RS'' RS''' ANS AUTH ADD ANS' AUTH' ADD' : List{Record} .
+  var CACHE : Cache .
+  var NXDOMAIN_CACHE : NxdomainCache .
+  var NODATA_CACHE : NodataCache .
+  var ZS : ZoneState .
+  var NA : Map{Name, Address} .
+
+  --------------------------------------
+  --- [MESSAGE AMPLIFICATION FACTOR] ---
+  --------------------------------------
+  --- #messages RECEIVED by the victim's actors divided by #messages SENT by the attacker's actors
+  --- Args: attacker's actors, victim's actors, final config
+  op msgAmpFactor : AddrList AddrList Config -> [Float] .
+  eq msgAmpFactor(AL, AL', C) = numActorMsgsRecvd(AL', C) / numActorMsgsSent(AL, C) .
+
+  --- Message amplification factor in the terminal config
+  op msgAmpFactorTerminal : AddrList AddrList Config -> [Float] .
+  ceq msgAmpFactorTerminal(AL, AL', C) = numActorMsgsRecvdTerminal(AL', C) / numActorMsgsSentTerminal(AL, C)
+    if reachedTerminalConfig(C) .
+
+  --- Get total number of messages received by the given list of actors (list of addresses)
+  op numActorMsgsRecvd : AddrList Config -> [Float] .
+  eq numActorMsgsRecvd(AL, < ADDR : Monitor | totalRcv: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF) .
+
+  --- Get total number of messages received by the given list of actors (list of addresses) in the terminal config
+  op numActorMsgsRecvdTerminal : AddrList Config -> [Float] .
+  ceq numActorMsgsRecvdTerminal(AL, < ADDR : Monitor | totalRcv: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF)
+    if reachedTerminalConfig(< ADDR : Monitor | totalRcv: AF, STATE > C) .
+
+  --- Get total number of messages sent by the given list of actors (list of addresses)
+  op numActorMsgsSent : AddrList Config -> [Float] .
+  eq numActorMsgsSent(AL, < ADDR : Monitor | totalSent: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF) .
+
+  --- Get total number of messages sent by the given list of actors (list of addresses) in the terminal config
+  op numActorMsgsSentTerminal : AddrList Config -> [Float] .
+  ceq numActorMsgsSentTerminal(AL, < ADDR : Monitor | totalSent: AF, STATE > C)
+    = $numActorMsgsAF(AL, AF)
+    if reachedTerminalConfig(< ADDR : Monitor | totalSent: AF, STATE > C) .
+
+  op $numActorMsgsAF : AddrList AddrFloatMap -> Float .
+  eq $numActorMsgsAF(AL, (addrFloatEntry(ADDR, NUM), AF))
+    = if inAddrList(ADDR, AL)
+        then NUM + $numActorMsgsAF(AL, AF)
+        else $numActorMsgsAF(AL, AF)
+      fi .
+  eq $numActorMsgsAF(AL, emptyAF) = 0.0 .
+
+  ------------------------
+  --- [REPEATED QUERY] ---
+  ------------------------
+  --- The SAME name server is asked MULTIPLE TIMES for the SAME query.
+  --- Same query means that the later query is a follow-up query of the earlier one, and that the QNAME is the same.
+  op hasRepeatedQuery : Config -> Bool .
+  eq hasRepeatedQuery(< ADDR : Monitor | nsQueryLog: TAQL, STATE > C) = $hasRepeatedQuery(TAQL) .
+
+  op $hasRepeatedQuery : TupleAddrQueryList -> Bool .
+  eq $hasRepeatedQuery(TAQ TAQL)
+    = if repeatsInTAQL(TAQ, TAQL)
+        then true
+        else $hasRepeatedQuery(TAQL)
+      fi .
+  eq $hasRepeatedQuery(nilTAQL) = false .
+
+  --- Returns whether the query from the given tuple is a "repeated" follow-up query of an earlier query in the list.
+  ---   Note that the list is assumed to be ordered from latest query to earliest query.
+  op repeatsInTAQL : TupleAddrQuery TupleAddrQueryList -> Bool .
+  eq repeatsInTAQL(tupleAddrQuery(ADDR, query(ID, NAME, RTYPE)), tupleAddrQuery(ADDR', query(ID', NAME', RTYPE')) TAQL)
+    = if ADDR == ADDR' and NAME == NAME' and RTYPE == RTYPE' and isIdPrefix(ID', ID)
+        then true
+        else repeatsInTAQL(tupleAddrQuery(ADDR, query(ID, NAME, RTYPE)), TAQL)
+      fi .
+  eq repeatsInTAQL(TAQ, nilTAQL) = false .
+
+  ----------------------
+  --- [REWRITE LOOP] ---
+  ----------------------
+  --- The query is rewritten to itself.
+  --- Checks the rsvRewriteLog for rewrite loops, i.e., entries where the "best canonical name" appears as an
+  --- alias name in the partial answer section that led there.
+  op hasRewriteLoop : Config -> Bool .
+  eq hasRewriteLoop(< ADDR : Monitor | rsvRewriteLog: TNRL, STATE > C) = rewriteLoop(TNRL) .
+
+  --- Returns whether there is any tuple where the name appears as the owner of a CNAME record in the list.
+  ---   To detect rewrite loops, the tuples should contain pairs of "best canonical names" and the partial answer
+  ---   sections that led there.
+  op rewriteLoop : TupleNameRecsList -> Bool .
+  eq rewriteLoop(tupleNameRecs(NAME, RS) TNRL)
+    = if lookupRecords(NAME, cname, RS) =/= nil
+        then true
+        else rewriteLoop(TNRL)
+      fi .
+  eq rewriteLoop(nilTNRL) = false .
+
+  ---------------------------
+  --- [REWRITE BLACKHOLE] ---
+  ---------------------------
+  --- The query is rewritten to a name that does not exist.
+  --- This is detected by the presence of a response (to the client) with NXDOMAIN RCODE and a non-empty answer
+  --- section.
+  op hasRewriteBlackhole : Config -> Bool .
+  eq hasRewriteBlackhole(< ADDR : Monitor | clRespLog: TARL, STATE > C) = rewriteBlackhole(TARL) .
+
+  --- Returns whether the TupleAddrRespList contains a response with NXDOMAIN RCODE and a non-empty answer section.
+  op rewriteBlackhole : TupleAddrRespList -> Bool .
+  eq rewriteBlackhole(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = if ANS =/= nil and RCODE == 3 --- NXDOMAIN
+        then true
+        else rewriteBlackhole(TARL)
+      fi .
+  eq rewriteBlackhole(nilTARL) = false .
+
+  -------------------------
+  --- [LAME DELEGATION] ---
+  -------------------------
+  --- A name server is asked that is neither authoritative nor can provide a (downward) referral.
+  ---   This is detected by the presence of a response with the REFUSED RCODE.
+  op hasLameDelegation : Config -> Bool .
+  eq hasLameDelegation(< ADDR : Monitor | nsRespLog: TARL, STATE > C) = responseRefused(TARL) .
+
+  --- Returns whether the TupleAddrRespList contains a response with REFUSED RCODE.
+  op responseRefused : TupleAddrRespList -> Bool .
+  eq responseRefused(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = if RCODE == 5 --- REFUSED
+        then true
+        else responseRefused(TARL)
+      fi .
+  eq responseRefused(nilTARL) = false .
+
+  ------------------
+  --- [ZERO TTL] ---
+  ------------------
+  --- Resolution of the query involves zero-TTL records.
+  ---   This is the case if any name server response contains records with zero TTL.
+  op hasZeroTTL : Config -> Bool .
+  eq hasZeroTTL(< ADDR : Monitor | nsRespLog: TARL, STATE > C)
+    = recordWithZeroTTL(recordsFromTARL(TARL)) .
+
+  --- Returns the records appearing in any response in the TupleAddrRespList as a list.
+  op recordsFromTARL : TupleAddrRespList -> List{Record} .
+  eq recordsFromTARL(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = ANS AUTH ADD recordsFromTARL(TARL) .
+  eq recordsFromTARL(nilTARL) = nil .
+
+  --- Returns whether the list contains any records with zero TTL.
+  op recordWithZeroTTL : List{Record} -> Bool .
+  eq recordWithZeroTTL(< NAME, RTYPE, TTL, RDATA > RS)
+    = if TTL == 0.0
+        then true
+        else recordWithZeroTTL(RS)
+      fi .
+  eq recordWithZeroTTL(nil) = false .
+
+  ---------------------------
+  --- [NXDOMAIN RESPONSE] ---
+  ---------------------------
+  --- The query is answered with an NXDOMAIN response.
+  op hasNxdomain : Config -> Bool .
+  eq hasNxdomain(< ADDR : Monitor | clRespLog: TARL, STATE > C) = responseNxdomain(TARL) .
+
+  --- Returns whether the TupleAddrRespList contains any NXDOMAIN response.
+  op responseNxdomain : TupleAddrRespList -> Bool .
+  eq responseNxdomain(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = if RCODE == 3 --- NXDOMAIN
+        then true
+        else responseNxdomain(TARL)
+      fi .
+  eq responseNxdomain(nilTARL) = false .
+
+  ---------------------------
+  --- [YXDOMAIN RESPONSE] ---
+  ---------------------------
+  --- The query results in a domain overflow at a nameserver.
+  --- This can happen due to DNAME substitution.
+  op hasYxdomain : Config -> Bool .
+  eq hasYxdomain(< ADDR : Monitor | nsRespLog: TARL, STATE > C) = responseYxdomain(TARL) .
+
+  --- Returns whether the TupleAddrRespList contains any YXDOMAIN response.
+  op responseYxdomain : TupleAddrRespList -> Bool .
+  eq responseYxdomain(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = if RCODE == 6 --- YXDOMAIN
+        then true
+        else responseYxdomain(TARL)
+      fi .
+  eq responseYxdomain(nilTARL) = false .
+
+  -------------------------
+  --- [DOMAIN OVERFLOW] ---
+  -------------------------
+  --- The query produces a name that exceeds the maximum domain length.
+  --- Note that this property also detects overflows at the resolver (due to cached DNAMEs), whereas the YXDOMAIN
+  --- property only checks for overflows at nameservers.
+  op hasOverflow : Config -> Bool .
+  eq hasOverflow(< ADDR : Monitor | rsvRewriteLog: TNRL, STATE > C) = overflow(TNRL) .
+
+  --- Returns whether there is any tuple where the name appears as the owner of a CNAME record in the list.
+  ---   To detect rewrite loops, the tuples should contain pairs of "best canonical names" and the partial answer
+  ---   sections that led there.
+  op overflow : TupleNameRecsList -> Bool .
+  eq overflow(tupleNameRecs(NAME, RS) TNRL)
+    = if nameLength(NAME) > 255
+        then true
+        else overflow(TNRL)
+      fi .
+  eq overflow(nilTNRL) = false .
+
+  -----------------------------
+  --- [GLUELESS DELEGATION] ---
+  -----------------------------
+  --- Resolution of the query involves a delegation without glue.
+  op hasGluelessDelegation : Config -> Bool .
+  eq hasGluelessDelegation(< ADDR : Monitor | nsRespLog: TARL, STATE > C) = responseGluelessDelegation(TARL) .
+
+  --- Returns whether the TupleAddrRespList contains any response with a glueless delegation.
+  op responseGluelessDelegation : TupleAddrRespList -> Bool .
+  eq responseGluelessDelegation(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = if filterRType(ns, AUTH) =/= nil --- response contains a referral
+        then $responseGluelessDelegation(filterRType(ns, AUTH), ADD) or responseGluelessDelegation(TARL)
+        else responseGluelessDelegation(TARL)
+      fi .
+  eq responseGluelessDelegation(nilTARL) = false .
+
+  --- Args: NS records, glue records
+  op $responseGluelessDelegation : List{Record} List{Record} -> Bool .
+  eq $responseGluelessDelegation(R RS, ADD)
+    = if findGlue(R, ADD) == nil
+        then true
+        else $responseGluelessDelegation(RS, ADD)
+      fi .
+  eq $responseGluelessDelegation(nil, ADD) = false .
+
+  ----------------------------------
+  --- [DELEGATION INCONSISTENCY] ---
+  ----------------------------------
+  --- Either some NS RRset in an authority section (i.e., in a referral response) and an answer section (i.e., in
+  --- an authoritative answer), or some A RRset in an additional section (i.e., as glue in a referral) and an
+  --- answer section (i.e., in an authoritative answer) disagree.
+  op hasDelegationInconsistency : Config -> Bool .
+  eq hasDelegationInconsistency(< ADDR : Monitor | nsRespLog: TARL, STATE > C) = delegationInconsistency(TARL) .
+
+  op delegationInconsistency : TupleAddrRespList -> Bool .
+  ceq delegationInconsistency(TARL)
+    = not(consistentRRsets(filterRType(ns, ANS), filterRType(ns, AUTH))) or
+      not(consistentRRsets(filterRType(a, ANS), filterRType(a, ADD)))
+    if ANS := ansRecordsFromTARL(TARL) /\
+       AUTH := authRecordsFromTARL(TARL) /\
+       ADD := additionalRecordsFromTARL(TARL) .
+
+  --- Returns whether all RRsets that occur in both lists are consistent.
+  op consistentRRsets : List{Record} List{Record} -> Bool .
+  ceq consistentRRsets(RS, RS')
+    = if RS''' =/= nil
+        --- RRset also exists in other list, so check consistency
+        then listsAgree(filterRRset(NAME, RTYPE, RS), RS''') and consistentRRsets(filterNotRRset(NAME, RTYPE, RS), RS')
+        --- RRset does not exist in other list
+        else consistentRRsets(filterNotRRset(NAME, RTYPE, RS), RS')
+      fi
+    if < NAME, RTYPE, TTL, RDATA > RS'' := RS /\
+       RS''' := filterRRset(NAME, RTYPE, RS') .
+  eq consistentRRsets(nil, RS') = true .
+
+  --- Returns whether the two lists contain the same records (possibly in a different order).
+  ---   This assumes no duplicate records.
+  op listsAgree : List{Record} List{Record} -> Bool .
+  eq listsAgree(RS, RS') = size(RS) == size(RS') and $listsAgree(RS, RS') .
+
+  --- Returns whether each record in the first list also occurs in the second list.
+  op $listsAgree : List{Record} List{Record} -> Bool .
+  eq $listsAgree(R RS, RS') = occurs(R, RS') and $listsAgree(RS, RS') .
+  eq $listsAgree(nil, RS') = true .
+
+  --- Returns the records appearing in the answer section of any response in the TupleAddrRespList as a list.
+  op ansRecordsFromTARL : TupleAddrRespList -> List{Record} .
+  eq ansRecordsFromTARL(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = ANS ansRecordsFromTARL(TARL) .
+  eq ansRecordsFromTARL(nilTARL) = nil .
+
+  --- Returns the records appearing in the authority section of any response in the TupleAddrRespList as a list.
+  op authRecordsFromTARL : TupleAddrRespList -> List{Record} .
+  eq authRecordsFromTARL(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = AUTH authRecordsFromTARL(TARL) .
+  eq authRecordsFromTARL(nilTARL) = nil .
+
+  --- Returns the records appearing in the additional section of any response in the TupleAddrRespList as a list.
+  op additionalRecordsFromTARL : TupleAddrRespList -> List{Record} .
+  eq additionalRecordsFromTARL(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)) TARL)
+    = ADD additionalRecordsFromTARL(TARL) .
+  eq additionalRecordsFromTARL(nilTARL) = nil .
+
+  --------------------------------
+  --- [CIRCULAR NS DEPENDENCY] ---
+  --------------------------------
+  --- Resolution of the query encounters a "non-trivial" circular dependency, i.e., one that does not fall into
+  --- the category explicitly mentioned in RFC 1035, §7.2.
+  op hasCircularDependency : Config -> Bool .
+  eq hasCircularDependency(< ADDR : Monitor | rsvSlistLog: TSAL, STATE > C) = circularDependency(TSAL) .
+
+  --- This is based on initSLIST: We exclude "trivial" circular dependencies and use circDepNS to look for circular
+  ---   dependencies.
+  op circularDependency : TupleSlistArgsList -> Bool .
+  ceq circularDependency(tupleSlistArgs(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, NAME'') TSAL)
+    = if not(not(hasKnownAddress(NA)) and nameIsInMap(NAME'', NA)) and
+          circDepNS(NAME'', CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+        then true
+        else circularDependency(TSAL)
+      fi
+    if RS := cacheToList(CACHE) /\ --- note that we consider data of any credibility
+       RS' := findBestLocalNS(NAME, RS) /\
+       NAME' := ownerName(head(RS')) /\ --- all NS records have the same NAME, so let's just use the first one
+       --- initialize SLIST map depending on whether MaxFetch(k) mitigation is enabled
+       NA := if maxFetch?
+               then createSLISTMapMax(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE, maxFetchParam)
+               else createSLISTMap(RS', CACHE, NXDOMAIN_CACHE, NODATA_CACHE)
+             fi /\
+       NA =/= empty .
+  eq circularDependency(tupleSlistArgs(NAME, CACHE, NXDOMAIN_CACHE, NODATA_CACHE, ZS, NAME'') TSAL)
+    = circularDependency(TSAL) [owise] . --- empty cache
+  eq circularDependency(nilTSAL) = false .
+
+  -----------------------------
+  --- [INCONSISTENT RRSETS] ---
+  -----------------------------
+  --- Static inconsistency check:
+  --- Returns whether the config contains nameservers with inconsistent RRsets.
+  --- Note that we return true if the monitor's init attribute is false, i.e., if it has not taken a snapshot of the
+  --- initial state. This is to avoid giving a false negative answer if the wrapper initSnapshot is forgotten.
+  op hasInconsistentRRsets : Config -> Bool .
+  eq hasInconsistentRRsets(< ADDR : Monitor | init: false, STATE > C) = true . --- monitor not initialized!
+  ceq hasInconsistentRRsets(< ADDR : Monitor | init: true, nsRecs: TARecsS, STATE > C)
+    = true
+    if tupleAddrRecs(ADDR', RS) tupleAddrRecs(ADDR'', RS') TARecsS' := TARecsS /\
+       not(consistentRRsets(RS, RS')) .
+  eq hasInconsistentRRsets(< ADDR : Monitor | init: true, nsRecs: TARecsS, STATE > C) = false [owise] .
+
+  ------------------------------
+  --- [INCONSISTENT ANSWERS] ---
+  ------------------------------
+  --- A client query has different answers in two different executions.
+  --- Note that this property is defined over _two_ configurations. The idea is to explore a pair of two identical
+  --- initial states, and then check if they can produce different answers.
+  --- Args: config 1, config 2
+  op haveInconsistentAnswers : Config Config -> Bool .
+  eq haveInconsistentAnswers(
+    < ADDR : Monitor | clRespLog: TARL, STATE > C,
+    < ADDR' : Monitor | clRespLog: TARL', STATE' > C'
+  ) = responseInconsistent(TARL, TARL') .
+
+  --- Returns whether the two TupleAddrRespLists contain inconsistent answers
+  op responseInconsistent : TupleAddrRespList TupleAddrRespList -> Bool .
+  eq responseInconsistent(TAR TARL, TARL')
+    = $responseInconsistent(TAR, TARL') or responseInconsistent(TARL, TARL') .
+  eq responseInconsistent(nilTARL, TARL') = false .
+
+  op $responseInconsistent : TupleAddrResp TupleAddrRespList -> Bool .
+  eq $responseInconsistent(
+      tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)),
+      tupleAddrResp(ADDR, response(ID, NAME, ANS', AUTH', ADD', RCODE')) TARL)
+    = if ANS =/= ANS' or AUTH =/= AUTH' or ADD =/= ADD' or RCODE =/= RCODE'
+        then true
+        else $responseInconsistent(tupleAddrResp(ADDR, response(ID, NAME, ANS, AUTH, ADD, RCODE)), TARL)
+      fi .
+  eq $responseInconsistent(TAR, nilTARL) = false .
+
+endm

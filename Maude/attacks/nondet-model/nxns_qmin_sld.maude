@@ -1,0 +1,159 @@
+load ../../src/nondet-model/dns
+load ../../src/nondet-model/properties
+load ../../attacker-models/nondet-model/attacker
+
+--- This is a combination of variant (b) of the NXNS attack and an attack based on QNAME minimization amplification.
+--- The victim is an authoritative server for a SLD zone.
+--- For the attack to work, the following requirements need to be met:
+---  * The victim zone (a SLD) must contain a wildcard record of arbitrary type.
+---  * The resolver must perform QNAME minimization even for internally generated queries to resolve name server
+---    addresses.
+---  * The resolver must be susceptible to an NXNS attack at least to some degree.
+
+mod TEST is
+  inc DNS + PROPERTIES + ATTACKER .
+
+  eq monitorQueryLog? = true .
+
+  --- uncomment to enable MaxFetch(1) mitigation
+  --- eq maxFetch? = true .
+  eq maxFetchParam = 1 .
+
+  op testTTL : -> Float .
+  eq testTTL = 1.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >, 1)
+    cacheEntry(< 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim >, 1) .
+
+  ops addrRoot addrNScom addrNSvictim addrNSattacker addrUnresponsive : -> Address .
+
+  ops zoneRoot zoneCom zoneVictim zoneAttacker : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker > --- glue
+
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim > . --- glue
+
+  eq zoneVictim =
+    --- authoritative data
+    < 'victim . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim >
+    < wildcard . 'victim . 'com . root, mx, testTTL, addrUnresponsive > . --- a wildcard record of arbitrary type
+
+  eq zoneAttacker =
+    --- authoritative data
+    < 'attacker . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker >
+
+    --- Fake delegations for sd0 pointing to a name (with many labels) under a wildcard record in the victim zone.
+    --- The delegations then trigger a long sequence of QNAME minimization queries.
+    --- The best number of labels depends on the parameters (query limits) for QNAME minimization.
+    --- The best number of fake delegations then depends on the number of labels and the per-client-query work limit
+    --- of the resolver and any NXNS countermeasures that are implemented.
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake1j . 'fake1i . 'fake1h . 'fake1g . 'fake1f . 'fake1e . 'fake1d . 'fake1c . 'fake1b . 'fake1a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake2j . 'fake2i . 'fake2h . 'fake2g . 'fake2f . 'fake2e . 'fake2d . 'fake2c . 'fake2b . 'fake2a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake3j . 'fake3i . 'fake3h . 'fake3g . 'fake3f . 'fake3e . 'fake3d . 'fake3c . 'fake3b . 'fake3a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake4j . 'fake4i . 'fake4h . 'fake4g . 'fake4f . 'fake4e . 'fake4d . 'fake4c . 'fake4b . 'fake4a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake5j . 'fake5i . 'fake5h . 'fake5g . 'fake5f . 'fake5e . 'fake5d . 'fake5c . 'fake5b . 'fake5a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake6j . 'fake6i . 'fake6h . 'fake6g . 'fake6f . 'fake6e . 'fake6d . 'fake6c . 'fake6b . 'fake6a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake7j . 'fake7i . 'fake7h . 'fake7g . 'fake7f . 'fake7e . 'fake7d . 'fake7c . 'fake7b . 'fake7a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake8j . 'fake8i . 'fake8h . 'fake8g . 'fake8f . 'fake8e . 'fake8d . 'fake8c . 'fake8b . 'fake8a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake9j . 'fake9i . 'fake9h . 'fake9g . 'fake9f . 'fake9e . 'fake9d . 'fake9c . 'fake9b . 'fake9a .
+          'victim . 'com . root >
+    < 'sd0 . 'attacker . 'com . root, ns, testTTL,
+        'fake10j . 'fake10i . 'fake10h . 'fake10g . 'fake10f . 'fake10e . 'fake10d . 'fake10c . 'fake10b . 'fake10a .
+          'victim . 'com . root > .
+
+  op initConfig : -> Config .
+  eq initConfig =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache, --- assuming the victim.com name servers are cached
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- victim.com authoritative name server
+    < addrNSvictim : Nameserver | db: zoneVictim, queue: nilQueue >
+    --- attacker's authoritative name server
+    < addrNSattacker : Nameserver | db: zoneAttacker, queue: nilQueue >
+    --- an unresponsive "name server" that drops everything
+    < addrUnresponsive : UnresponsiveNameserver | noneAS > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+--- rew numActorMsgsRecvdTerminal(addrNSvictim, initConfig) .
+--- rew numActorMsgsSentTerminal(cAddr ; addrNSattacker, initConfig) .
+rew msgAmpFactorTerminal(cAddr ; addrNSattacker, addrNSvictim, initConfig) .

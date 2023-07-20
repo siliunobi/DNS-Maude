@@ -1,0 +1,127 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+load ../../attacker-models/probabilistic-model/attacker
+
+--- Simple Random Prefix Attack against victim.com with non-existent subdomain queries
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER .
+
+  --- turn on name server resource bounds and resolver timeouts
+  eq nsResourceBounds? = true .
+  eq rsvTimeout? = true .
+  eq rsvTimeout = 1000.0 .
+
+  --- turn off detailed monitoring for better performance
+  eq monitorQueryLog? = true .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  --- Simple query to www.victim.com
+  --- op q : -> Query .
+  ---- eq q = query(1, 'www . 'victim . 'com . root, a) .
+
+  --- Cache with nameserver of victim.com
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'victim . 'com . root, ns, testTTL, 'ns . 'victime . 'com . root >, 1)
+    cacheEntry(< 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim >, 1) .
+
+  --- Addresses of the monitor, client and resolver
+  ops mAddr cAddr cAddr1 rAddr : -> Address .
+
+  ops addrRoot addrNScom addrNSvictim : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'com . root |-> addrRoot) > .
+
+  ops zoneRoot zoneCom zoneVictim : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-server . 'com . root > --- reference to the possible sbelt
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'com . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative database
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root > --- WARNING is 'root correct ? not simply root ?
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a , testTTL, addrNSvictim > . --- glue
+
+  eq zoneVictim =
+    --- authoritative data
+    < 'victim . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'victim . 'com . root, ns, testTTL, 'ns . 'victim . 'com . root >
+    < 'ns . 'victim . 'com . root, a, testTTL, addrNSvictim > .
+    --- < wildcard . 'victim . 'com . root, mx, testTTL, nullAddr > . --- a wildcard record of any type
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0  | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [10.0 + atkrInitDelay, to cAddr : start, 0]
+
+    --- Creation of the malicious client and the resolver
+    --- Only one more label is needed
+
+    --- Legitimate client
+    < cAddr : Client | queries: genQueries(20, 'victim . 'com . root, 1, a, cAddr),
+                       resolver: rAddr,
+                       notifyDone: cAddr1 >
+
+    nxdomainClient(cAddr1, 'victim . 'com . root, 1, rAddr, 0.1)
+
+    < rAddr : Resolver | cache: cache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+
+    < addrNSvictim : Nameserver | db: zoneVictim, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+set clear rules off .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+
+--- rew initConfig .
+
+rew numActorMsgsRecvd(rAddr, initConfig) .
+--- rew numActorMsgsSent(cAddr ; cAddr1, initConfig) .
+--- rew msgAmpFactor(cAddr ; cAddr, rAddr, initConfig) .
+
+rew clientQSuccessRatio(initConfig) .

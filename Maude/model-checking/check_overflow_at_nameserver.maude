@@ -1,0 +1,129 @@
+load preds
+load ../test/nondet-model/test_helpers
+
+--- In this example, one of the name servers for zone example.com (ns2.example.com) is configured such that the query
+--- for overflow.dnamelong.example.com produces an overflow. With the other nameserver, no overflow occurs.
+--- Thus, whether or not the resolver receives a YXDOMAIN response depends on which name server it asks.
+
+mod DNS-CHECK is
+  pr DNS-PREDS .
+  inc MODEL-CHECKER .
+  inc LTL-SIMPLIFIER .
+
+  inc TEST-HELPERS .
+
+  var QS : List{Query} .
+  var CACHE : Cache .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  ops q q' : -> Query .
+  eq q = query(1, 'overflow . 'dnamelong . 'example . 'com . root, a) .
+  eq q' = query(2, 'a . 'dnamelong . 'example . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNS1com addrNS2com addrNS1example addrNS2example : -> Address .
+
+  ops dbRoot dbNScom dbNSexample dbNSexampleCorrupt : -> List{Record} .
+
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'com . root, ns, testTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, testTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, testTTL, addrNS1com >   --- glue record
+    < 'ns2 . 'com . root, a, testTTL, addrNS2com > . --- glue record
+
+  eq dbNScom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < 'com . root, ns, testTTL, 'ns1 . 'com . root >
+    < 'com . root, ns, testTTL, 'ns2 . 'com . root >
+    < 'ns1 . 'com . root, a, testTTL, addrNS1com >
+    < 'ns2 . 'com . root, a, testTTL, addrNS2com >
+
+    --- non-authoritative data
+    < 'example . 'com . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < 'ns1 . 'example . 'com . root, a, testTTL, addrNS1example > --- glue record
+    < 'example . 'com . root, ns, testTTL, 'ns2 . 'example . 'com . root >
+    < 'ns2 . 'example . 'com . root, a, testTTL, addrNS2example > . --- glue record
+
+  eq dbNSexample =
+    --- authoritative data
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'example . 'com . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, testTTL, 'ns2 . 'example . 'com . root >
+
+    < 'ns1 . 'example . 'com . root, a, testTTL, addrNS1example >
+    < 'ns2 . 'example . 'com . root, a, testTTL, addrNS2example >
+    
+    < 'dnamelong . 'example . 'com . root, dname, testTTL,
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'example . 'com . root > .
+
+  eq dbNSexampleCorrupt =
+    --- authoritative data
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'example . 'com . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < 'example . 'com . root, ns, testTTL, 'ns2 . 'example . 'com . root >
+
+    < 'ns1 . 'example . 'com . root, a, testTTL, addrNS1example >
+    < 'ns2 . 'example . 'com . root, a, testTTL, addrNS2example >
+    
+    < 'dnamelong . 'example . 'com . root, dname, testTTL,
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'example . 'com . root > . --- Note that this is longer than above
+
+  op initConfig : List{Query} Cache -> Config .
+  eq initConfig(QS, CACHE) =
+    --- Preliminaries
+    initMonitor(mAddr)
+    (to cAddr : start)
+
+    < cAddr : Client | queries: QS, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: CACHE,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Name servers
+    < addrRoot : Nameserver | db: dbRoot, queue: nilQueue >
+    < addrNS1com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNS2com : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNS1example : Nameserver | db: dbNSexample, queue: nilQueue >
+    < addrNS2example : Nameserver | db: dbNSexampleCorrupt, queue: nilQueue > .
+
+endm
+
+rew initConfig(q, nilCache) .
+
+--- There is no way to get an overflow at the nameserver for a.dnamelong.example.com.
+search [1] initConfig(q', nilCache) =>* C:Config such that hasYxdomain(C:Config) .
+
+--- There is an execution reaching a final state without an overflow at the nameserver.
+search [1] initConfig(q, nilCache) =>! C:Config such that not(hasYxdomain(C:Config)) and reachedTerminalConfig(C:Config) .
+
+--- There is an execution that encounters an overflow at the nameserver.
+search [1] initConfig(q, nilCache) =>* C:Config such that hasYxdomain(C:Config) .
+
+--- There is no execution that encounters an overflow at the nameserver (note that there is an overflow at the RESOLVER
+--- due to the cached DNAME!).
+search [1] initConfig(q' q, nilCache) =>* C:Config such that hasYxdomain(C:Config) .
+
+red modelCheck(initConfig(q, nilCache), [] ~ propYxdomain) .
+
+

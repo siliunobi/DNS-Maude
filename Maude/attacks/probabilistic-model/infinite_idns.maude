@@ -1,0 +1,110 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/aux
+load ../../src/probabilistic-model/properties
+load ../../attacker-models/probabilistic-model/attacker
+
+--- This is the iDNS attack with infinite depth recursion using a maliciousIDNSNameserver.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES + ATTACKER .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  op q : -> Query .
+  eq q =   genQueries(100, 'attacker . 'com . root, 1, a, cAddr) . --- generates 100 queries for subdomain of 'attacker . 'com with only one label added
+    --- query(1, 'sub . 'attacker . 'com . root, a) .
+    --- idnsQuery('attacker . 'com . root, 1, 0) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  --- Create the cache
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker  . 'com . root >, 1)
+    cacheEntry(< 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker >, 1) .
+
+  ops addrRoot addrNScom addrNSattacker : -> Address .
+
+  ops zoneRoot zoneCom zoneAttacker : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) >
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a , testTTL, addrNScom > .
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'attacker . 'com . root, ns, testTTL, 'ns . 'attacker . 'com . root >
+    < 'ns . 'attacker . 'com . root, a, testTTL, addrNSattacker > .
+
+  --- Attacker zone not needed as the maliciousIDNSNameserver will assemble this directly
+
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+  --- eq initConfig =
+    --- Preliminaries
+    initMonitor(mAddr)
+    --- (to cAddr : start)
+    [id, to cAddr : start, 0]
+
+    --- Legitimate client
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    --- Resolver used by the legitimate client
+    < rAddr : Resolver | cache: cache, --- assume the resolver knows the iDNS Nameserver
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+
+    --- Malicious IDNS nameserver that is used by the resolver, with 20 delegations for each query received and 10 appended labels
+    maliciousIDNSNameserver(addrNSattacker, 'attacker . 'com . root, 20, 10,  testTTL) .
+
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+
+rew msgAmpFactor(cAddr ; addrNSattacker, rAddr, initConfig) .
+rew msgAmpFactor(addrNSattacker, rAddr, initConfig) .
+rew numActorMsgsRecvd(rAddr, initConfig) .
+rew numActorMsgsSent(addrNSattacker, initConfig) .
+--- rew msgAmpFactorTerminal(cAddr ; addrNSattacker, rAddr, initConfig) .

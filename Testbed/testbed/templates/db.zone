@@ -1,0 +1,19 @@
+$TTL    3600
+@       IN      SOA     ns. username. (
+                        2022092001      ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         3600 )       ; Negative Cache TTL
+
+{{.QName}}		IN	NS	ns.{{.ID}}
+ns.{{.ID}}	IN	A	{{.NS}}
+
+{{range $SubZone := .SubZones}}
+{{$SubZone.Label}}		IN	NS	ns.{{$SubZone.Label}}
+ns.{{$SubZone.Label}}	    IN	A	{{$SubZone.NS}}
+{{end}}
+
+; Other A records
+@               IN      A    	1.2.3.4
+www             IN      A       1.2.3.4

@@ -1,0 +1,9 @@
+name: "rewrite-unchained"
+target: "target"
+measure: "volume"
+queries:
+  - zone: "r1.a.com."
+    record: "TXT"
+qmin: true
+resolverIDs:
+  - "resolver-unbound-1.16.0"

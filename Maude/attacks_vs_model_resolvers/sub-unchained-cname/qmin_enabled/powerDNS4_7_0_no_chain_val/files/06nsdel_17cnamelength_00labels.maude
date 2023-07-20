@@ -1,0 +1,242 @@
+load ../../../../../src/probabilistic-model/dns
+load ../../../../../src/probabilistic-model/sampler
+load ../../../../../src/probabilistic-model/properties
+        
+--- Created automatically with Python.
+--- This file simulates the Subqueries-Unchained or Paralle NS + Unchained using CNAME chains. It consists
+--- of an attacker client query to a resolver which will trigger multiple NS
+--- delegations at a victim nameserver. The attacker managed to install some records in
+--- this victim nameserver, which trigger a long CNAME chain between the nameserver and
+--- the resolver. CNAME scrubbing is NOT used here
+--- Attacker: client ; Victim : nameserver
+        
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  eq rsvTimeout? = false .
+  eq rsvTimeout = 1000.0 .
+
+ 
+	---  maximum subqueries
+	eq maxFetch? = true .
+	eq maxFetchParam = 9 .
+
+	eq configWorkBudget = 100 .
+
+	--- enable overall timeout 
+	eq rsvOverallTimeout? = true . 
+	eq rsvOverallTimeout = 12000.0 . 
+
+
+         
+
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 .
+
+  op q : -> Query .
+  eq q = query(1, 'del . 'intermediary . 'com . root, a) .
+
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNScom addrNStargetANS addrNSintermediary : -> Address .
+
+  op cache : -> Cache .
+  eq cache =
+    cacheEntry(< 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >, 1)
+    cacheEntry(< 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >, 1)
+    cacheEntry(< 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >, 1)
+    cacheEntry(< 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >, 1) .
+
+
+  ops zoneRoot zoneCom zoneTargetANS zoneIntermediary : -> List{Record} .
+
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom > . --- glue
+
+  eq zoneCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . 'root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >  --- glue
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary > . --- glue
+
+  eq zoneTargetANS =
+    --- authoritative data
+    < 'target-ans . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'target-ans . 'com . root, ns, testTTL, 'ns . 'target-ans . 'com . root >
+    < 'ns . 'target-ans . 'com . root, a, testTTL, addrNStargetANS >
+
+    
+
+		< 'zz0 . 'target-ans . 'com . root , cname, testTTL, 'a0 . 'intermediary . 'com . root >
+		< 'b0 . 'target-ans . 'com . root , cname, testTTL, 'c0 . 'intermediary . 'com . root >
+		< 'd0 . 'target-ans . 'com . root , cname, testTTL, 'e0 . 'intermediary . 'com . root >
+		< 'f0 . 'target-ans . 'com . root , cname, testTTL, 'g0 . 'intermediary . 'com . root >
+		< 'h0 . 'target-ans . 'com . root , cname, testTTL, 'i0 . 'intermediary . 'com . root >
+		< 'j0 . 'target-ans . 'com . root , cname, testTTL, 'k0 . 'intermediary . 'com . root >
+
+
+		< 'zz1 . 'target-ans . 'com . root , cname, testTTL, 'a1 . 'intermediary . 'com . root >
+		< 'b1 . 'target-ans . 'com . root , cname, testTTL, 'c1 . 'intermediary . 'com . root >
+		< 'd1 . 'target-ans . 'com . root , cname, testTTL, 'e1 . 'intermediary . 'com . root >
+		< 'f1 . 'target-ans . 'com . root , cname, testTTL, 'g1 . 'intermediary . 'com . root >
+		< 'h1 . 'target-ans . 'com . root , cname, testTTL, 'i1 . 'intermediary . 'com . root >
+		< 'j1 . 'target-ans . 'com . root , cname, testTTL, 'k1 . 'intermediary . 'com . root >
+
+
+		< 'zz2 . 'target-ans . 'com . root , cname, testTTL, 'a2 . 'intermediary . 'com . root >
+		< 'b2 . 'target-ans . 'com . root , cname, testTTL, 'c2 . 'intermediary . 'com . root >
+		< 'd2 . 'target-ans . 'com . root , cname, testTTL, 'e2 . 'intermediary . 'com . root >
+		< 'f2 . 'target-ans . 'com . root , cname, testTTL, 'g2 . 'intermediary . 'com . root >
+		< 'h2 . 'target-ans . 'com . root , cname, testTTL, 'i2 . 'intermediary . 'com . root >
+		< 'j2 . 'target-ans . 'com . root , cname, testTTL, 'k2 . 'intermediary . 'com . root >
+
+
+		< 'zz3 . 'target-ans . 'com . root , cname, testTTL, 'a3 . 'intermediary . 'com . root >
+		< 'b3 . 'target-ans . 'com . root , cname, testTTL, 'c3 . 'intermediary . 'com . root >
+		< 'd3 . 'target-ans . 'com . root , cname, testTTL, 'e3 . 'intermediary . 'com . root >
+		< 'f3 . 'target-ans . 'com . root , cname, testTTL, 'g3 . 'intermediary . 'com . root >
+		< 'h3 . 'target-ans . 'com . root , cname, testTTL, 'i3 . 'intermediary . 'com . root >
+		< 'j3 . 'target-ans . 'com . root , cname, testTTL, 'k3 . 'intermediary . 'com . root >
+
+
+		< 'zz4 . 'target-ans . 'com . root , cname, testTTL, 'a4 . 'intermediary . 'com . root >
+		< 'b4 . 'target-ans . 'com . root , cname, testTTL, 'c4 . 'intermediary . 'com . root >
+		< 'd4 . 'target-ans . 'com . root , cname, testTTL, 'e4 . 'intermediary . 'com . root >
+		< 'f4 . 'target-ans . 'com . root , cname, testTTL, 'g4 . 'intermediary . 'com . root >
+		< 'h4 . 'target-ans . 'com . root , cname, testTTL, 'i4 . 'intermediary . 'com . root >
+		< 'j4 . 'target-ans . 'com . root , cname, testTTL, 'k4 . 'intermediary . 'com . root >
+
+
+		< 'zz5 . 'target-ans . 'com . root , cname, testTTL, 'a5 . 'intermediary . 'com . root >
+		< 'b5 . 'target-ans . 'com . root , cname, testTTL, 'c5 . 'intermediary . 'com . root >
+		< 'd5 . 'target-ans . 'com . root , cname, testTTL, 'e5 . 'intermediary . 'com . root >
+		< 'f5 . 'target-ans . 'com . root , cname, testTTL, 'g5 . 'intermediary . 'com . root >
+		< 'h5 . 'target-ans . 'com . root , cname, testTTL, 'i5 . 'intermediary . 'com . root >
+		< 'j5 . 'target-ans . 'com . root , cname, testTTL, 'k5 . 'intermediary . 'com . root >
+
+    .
+
+  eq zoneIntermediary =
+    --- authoritative data
+    < 'intermediary . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'intermediary . 'com . root, ns, testTTL, 'ns . 'intermediary . 'com . root >
+    < 'ns . 'intermediary . 'com . root, a, testTTL, addrNSintermediary >
+
+    	--- Malicious delegation
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz0 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz1 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz2 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz3 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz4 . 'target-ans . 'com . root >
+		< 'del . 'intermediary . 'com . root, ns, testTTL, 'zz5 . 'target-ans . 'com . root >
+
+
+
+		< 'a0 . 'intermediary . 'com . root , cname, testTTL, 'b0 . 'target-ans . 'com . root >
+		< 'c0 . 'intermediary . 'com . root , cname, testTTL, 'd0 . 'target-ans . 'com . root >
+		< 'e0 . 'intermediary . 'com . root , cname, testTTL, 'f0 . 'target-ans . 'com . root >
+		< 'g0 . 'intermediary . 'com . root , cname, testTTL, 'h0 . 'target-ans . 'com . root >
+		< 'i0 . 'intermediary . 'com . root , cname, testTTL, 'j0 . 'target-ans . 'com . root >
+
+
+		< 'a1 . 'intermediary . 'com . root , cname, testTTL, 'b1 . 'target-ans . 'com . root >
+		< 'c1 . 'intermediary . 'com . root , cname, testTTL, 'd1 . 'target-ans . 'com . root >
+		< 'e1 . 'intermediary . 'com . root , cname, testTTL, 'f1 . 'target-ans . 'com . root >
+		< 'g1 . 'intermediary . 'com . root , cname, testTTL, 'h1 . 'target-ans . 'com . root >
+		< 'i1 . 'intermediary . 'com . root , cname, testTTL, 'j1 . 'target-ans . 'com . root >
+
+
+		< 'a2 . 'intermediary . 'com . root , cname, testTTL, 'b2 . 'target-ans . 'com . root >
+		< 'c2 . 'intermediary . 'com . root , cname, testTTL, 'd2 . 'target-ans . 'com . root >
+		< 'e2 . 'intermediary . 'com . root , cname, testTTL, 'f2 . 'target-ans . 'com . root >
+		< 'g2 . 'intermediary . 'com . root , cname, testTTL, 'h2 . 'target-ans . 'com . root >
+		< 'i2 . 'intermediary . 'com . root , cname, testTTL, 'j2 . 'target-ans . 'com . root >
+
+
+		< 'a3 . 'intermediary . 'com . root , cname, testTTL, 'b3 . 'target-ans . 'com . root >
+		< 'c3 . 'intermediary . 'com . root , cname, testTTL, 'd3 . 'target-ans . 'com . root >
+		< 'e3 . 'intermediary . 'com . root , cname, testTTL, 'f3 . 'target-ans . 'com . root >
+		< 'g3 . 'intermediary . 'com . root , cname, testTTL, 'h3 . 'target-ans . 'com . root >
+		< 'i3 . 'intermediary . 'com . root , cname, testTTL, 'j3 . 'target-ans . 'com . root >
+
+
+		< 'a4 . 'intermediary . 'com . root , cname, testTTL, 'b4 . 'target-ans . 'com . root >
+		< 'c4 . 'intermediary . 'com . root , cname, testTTL, 'd4 . 'target-ans . 'com . root >
+		< 'e4 . 'intermediary . 'com . root , cname, testTTL, 'f4 . 'target-ans . 'com . root >
+		< 'g4 . 'intermediary . 'com . root , cname, testTTL, 'h4 . 'target-ans . 'com . root >
+		< 'i4 . 'intermediary . 'com . root , cname, testTTL, 'j4 . 'target-ans . 'com . root >
+
+
+		< 'a5 . 'intermediary . 'com . root , cname, testTTL, 'b5 . 'target-ans . 'com . root >
+		< 'c5 . 'intermediary . 'com . root , cname, testTTL, 'd5 . 'target-ans . 'com . root >
+		< 'e5 . 'intermediary . 'com . root , cname, testTTL, 'f5 . 'target-ans . 'com . root >
+		< 'g5 . 'intermediary . 'com . root , cname, testTTL, 'h5 . 'target-ans . 'com . root >
+		< 'i5 . 'intermediary . 'com . root , cname, testTTL, 'j5 . 'target-ans . 'com . root >
+
+    .
+
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: cache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .com authoritative name server
+    < addrNScom : Nameserver | db: zoneCom, queue: nilQueue >
+    --- attacker authoritative name server
+    < addrNStargetANS : Nameserver | db: zoneTargetANS, queue: nilQueue >
+    --- intermediary.com authoritative name server
+    < addrNSintermediary : Nameserver | db: zoneIntermediary, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew numActorMsgsRecvd(addrNStargetANS, initConfig) .
+        

@@ -1,0 +1,2 @@
+12-Jan-2023 02:20:13.070 info: client @0x7f965c00ad88 172.20.0.15#55933 (inter.net): query: inter.net IN NS -E(0)DCK (172.20.0.6)
+12-Jan-2023 02:20:13.070 info: client @0x7f9680002f58 172.20.0.15#51477 (del.inter.net): query: del.inter.net IN A -E(0)DCV (172.20.0.6)

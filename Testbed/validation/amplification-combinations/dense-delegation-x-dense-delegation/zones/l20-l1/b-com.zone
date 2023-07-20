@@ -1,0 +1,68 @@
+$TTL 3600
+@                       IN      SOA     server.b.com. username.b.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.b.com.
+ns.b.com.         IN      A       172.20.0.5
+
+
+n1.b.com. IN NS ns-l0.n1.b.com.
+ns-l0.n1.b.com. IN A 172.20.0.6
+
+n2.b.com. IN NS ns-l0.n2.b.com.
+ns-l0.n2.b.com. IN A 172.20.0.6
+
+n3.b.com. IN NS ns-l0.n3.b.com.
+ns-l0.n3.b.com. IN A 172.20.0.6
+
+n4.b.com. IN NS ns-l0.n4.b.com.
+ns-l0.n4.b.com. IN A 172.20.0.6
+
+n5.b.com. IN NS ns-l0.n5.b.com.
+ns-l0.n5.b.com. IN A 172.20.0.6
+
+n6.b.com. IN NS ns-l0.n6.b.com.
+ns-l0.n6.b.com. IN A 172.20.0.6
+
+n7.b.com. IN NS ns-l0.n7.b.com.
+ns-l0.n7.b.com. IN A 172.20.0.6
+
+n8.b.com. IN NS ns-l0.n8.b.com.
+ns-l0.n8.b.com. IN A 172.20.0.6
+
+n9.b.com. IN NS ns-l0.n9.b.com.
+ns-l0.n9.b.com. IN A 172.20.0.6
+
+n10.b.com. IN NS ns-l0.n10.b.com.
+ns-l0.n10.b.com. IN A 172.20.0.6
+
+n11.b.com. IN NS ns-l0.n11.b.com.
+ns-l0.n11.b.com. IN A 172.20.0.6
+
+n12.b.com. IN NS ns-l0.n12.b.com.
+ns-l0.n12.b.com. IN A 172.20.0.6
+
+n13.b.com. IN NS ns-l0.n13.b.com.
+ns-l0.n13.b.com. IN A 172.20.0.6
+
+n14.b.com. IN NS ns-l0.n14.b.com.
+ns-l0.n14.b.com. IN A 172.20.0.6
+
+n15.b.com. IN NS ns-l0.n15.b.com.
+ns-l0.n15.b.com. IN A 172.20.0.6
+
+n16.b.com. IN NS ns-l0.n16.b.com.
+ns-l0.n16.b.com. IN A 172.20.0.6
+
+n17.b.com. IN NS ns-l0.n17.b.com.
+ns-l0.n17.b.com. IN A 172.20.0.6
+
+n18.b.com. IN NS ns-l0.n18.b.com.
+ns-l0.n18.b.com. IN A 172.20.0.6
+
+n19.b.com. IN NS ns-l0.n19.b.com.
+ns-l0.n19.b.com. IN A 172.20.0.6
+
+n20.b.com. IN NS ns-l0.n20.b.com.
+ns-l0.n20.b.com. IN A 172.20.0.6
+
+
+

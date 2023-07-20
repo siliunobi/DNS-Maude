@@ -1,0 +1,2183 @@
+load ../../src/common/aux
+
+--- some constants
+mod TEST is
+  inc AUX-COMMON .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  ops REC RECALIAS RECALIAS2 RECALIASNS RECDNAME RECSYNTH : -> Record .
+  eq REC = < 'example . 'com . root, a, testTTL, 192 . 0 . 2 . 1 > .
+  eq RECALIAS = < 'alias . 'example . 'com . root, cname, testTTL, 'example . 'com . root > .
+  eq RECALIAS2 = < 'alias2 . 'example . 'com . root, cname, testTTL, 'alias . 'example . 'com . root > .
+  eq RECALIASNS = < 'nsalias . 'example . 'com . root, cname, testTTL, 'ns . 'example . 'com . root > .
+  eq RECDNAME = < 'dname . 'example . 'com . root, dname, testTTL, 'example . 'com . root > .
+  eq RECSYNTH = < 'www . 'dname . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root > .
+
+  ops EXAMPLENSREC EXAMPLENSAREC EXAMPLENSALIASREC : -> Record .
+  ops COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 NETNSREC ROOTNSREC : -> Record .
+  eq EXAMPLENSREC = < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'com . root > .
+  eq EXAMPLENSAREC = < 'ns . 'example . 'com . root, a, testTTL, 99 . 0 . 0 . 1 > .
+  eq EXAMPLENSALIASREC = < 'example . 'com . root, ns, testTTL, 'nsalias . 'example . 'com . root > .
+  eq COMNSREC1    = < 'com . root, ns, testTTL, 'ns1 . 'com . root > .
+  eq COMNSREC2    = < 'com . root, ns, testTTL, 'ns2 . 'com . root > .
+  eq COMNSAREC1   = < 'ns1 . 'com . root, a, testTTL, 100 . 0 . 0 . 1 > .
+  eq COMNSAREC2   = < 'ns2 . 'com . root, a, testTTL, 100 . 0 . 0 . 2 > .
+  eq NETNSREC     = < 'net . root, ns, testTTL, 'ns . 'net . root > .
+  eq ROOTNSREC    = < root, ns, testTTL, 'a . 'root-servers . 'net . root > .
+
+  ops EXAMPLESOA COMSOA ROOTSOA : -> Record .
+  eq EXAMPLESOA = < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+  eq COMSOA = < 'com . root, soa, testTTL, soaData(testTTL) > .
+  eq ROOTSOA = < root, soa, testTTL, soaData(testTTL) > .
+
+  ops EXAMPLECNAME EXAMPLECNAME1 EXAMPLECNAME2 EXAMPLECNAMEEXT EXAMPLECNAMENX : -> Record .
+  eq EXAMPLECNAME = < 'alias . 'subs . 'example . 'com . root, cname, testTTL, 'www . 'subs . 'example . 'com . root > .
+  eq EXAMPLECNAME1 = < 'alias . 'example . 'com . root, cname, testTTL, 'alias2 . 'example . 'com . root > .
+  eq EXAMPLECNAME2 = < 'alias2 . 'example . 'com . root, cname, testTTL, 'example . 'com . root > .
+  eq EXAMPLECNAMEEXT = < 'aliasext . 'example . 'com . root, cname, testTTL, 'sibling . 'com . root > .
+  eq EXAMPLECNAMENX = < 'alias2 . 'example . 'com . root, cname, testTTL, 'nxdomain . 'example . 'com . root > .
+
+  ops CNAME1 CNAME2 CNAME3 : -> Record .
+  eq CNAME1 = < 'alias1 . 'example . 'com . root, cname, testTTL, 'alias2 . 'example . 'com . root > .
+  eq CNAME2 = < 'alias2 . 'example . 'com . root, cname, testTTL, 'alias3 . 'example . 'com . root > .
+  eq CNAME3 = < 'alias3 . 'example . 'com . root, cname, testTTL, 'alias2 . 'example . 'com . root > .
+
+  ops EXAMPLEDNAME EXAMPLEDNAME1 EXAMPLEAATDNAME EXAMPLEDNAME2 EXAMPLEDNAMELONG : -> Record .
+  eq EXAMPLEDNAME = < 'example . 'com . root, dname, testTTL, 'example . 'net . root > .
+  eq EXAMPLEDNAME1 = < 'dname . 'example . 'com . root, dname, testTTL, 'example . 'net . root > .
+  eq EXAMPLEAATDNAME = < 'dname . 'example . 'com . root, a, testTTL, nullAddr > .
+  eq EXAMPLEDNAME2 = < 'dname2 . 'example . 'com . root, dname, testTTL, 'example . 'com . root > .
+  eq EXAMPLEDNAMELONG = < 'dnamelong . 'example . 'com . root, dname, testTTL,
+                            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+                            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+                            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+                            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'example . 'com . root > . --- 250 octets
+
+  op dbRoot : -> List{Record} .
+  eq dbRoot = ROOTSOA ROOTNSREC COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 .
+
+  op dbCOM : -> List{Record} .
+  eq dbCOM = COMSOA COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 EXAMPLENSREC EXAMPLENSAREC .
+
+  op dbExample : -> List{Record} .
+  eq dbExample = EXAMPLESOA
+                 EXAMPLENSREC
+                 EXAMPLENSAREC
+                 < 'sd1 . 'subs . 'example . 'com . root, ns, testTTL, 'ns . 'sd1 . 'subs . 'example . 'com . root >
+                 < 'sd2 . 'subs . 'example . 'com . root, ns, testTTL, 'ns . 'sd2 . 'subs . 'example . 'com . root >
+                 < 'www . 'subs . 'example . 'com . root, a, testTTL, 1 . 1 . 1 . 1 >
+                 EXAMPLECNAME .
+
+  op dbExampleDNAME : -> List{Record} .
+  eq dbExampleDNAME =
+      EXAMPLESOA
+      EXAMPLENSREC
+      EXAMPLENSAREC
+      EXAMPLEDNAME1
+      EXAMPLEAATDNAME
+      EXAMPLEDNAME2
+      EXAMPLEDNAMELONG .
+
+  op dbExampleDNAMEApex : -> List{Record} .
+  eq dbExampleDNAMEApex =
+      EXAMPLESOA
+      < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'net >
+      EXAMPLEDNAME .
+
+  --- The example from RFC 4592, §2.2.1
+  op dbWildcardExample : -> List{Record} .
+  eq dbWildcardExample =
+    < 'example . root, soa, testTTL, soaData(testTTL) >
+    < 'example . root, ns, testTTL, 'ns . 'example . 'com . root >
+    < 'example . root, ns, testTTL, 'ns . 'example . 'net . root >
+    < wildcard . 'example . root, txt, testTTL, nullAddr >
+    < wildcard . 'example . root, mx, testTTL, nullAddr >
+    < 'sub . wildcard . 'example . root, txt, testTTL, nullAddr >
+    < 'host1 . 'example . root, a, testTTL, 192 . 0 . 2 . 1 >
+    < '_ssh . '_tcp . 'host1 . 'example . root, srv, testTTL, nullAddr >
+    < '_ssh . '_tcp . 'host2 . 'example . root, srv, testTTL, nullAddr >
+    < 'subdel . 'example . root, ns, testTTL, 'ns . 'example . 'com . root >
+    < 'subdel . 'example . root, ns, testTTL, 'ns . 'example . 'net . root > .
+
+  op dbWildcardExtended : -> List{Record} .
+  eq dbWildcardExtended =
+    dbWildcardExample
+    < wildcard . 'sub . 'example . root, cname, testTTL, 'host1 . 'example . root >
+    < wildcard . 'subsub . wildcard . 'sub . 'example . root, a, testTTL, 1 . 2 . 3 . 4 >
+    < 'something . wildcard . 'sub2 . 'example . root, a, testTTL, 5 . 6 . 7 . 8 > .
+
+  --- The example from RFC 4592, §4.1
+  op dbWildcardZone : -> List{Record} .
+  eq dbWildcardZone =
+    < wildcard . 'example . root, soa, testTTL, soaData(testTTL) >
+    < wildcard . 'example . root, ns, testTTL, 'ns1 . 'example . 'com . root >
+    < wildcard . 'example . root, ns, testTTL, 'ns1 . 'example . 'net . root >
+    < 'www . wildcard . 'example . root, txt, testTTL, nullAddr > .
+
+  op SBELT : -> ZoneState .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> 198 . 41 . 0 . 4) > .
+
+  ops qss1 qss2 : -> QueryState .
+  ops q1 q2 : -> Query .
+
+  ops addr cAddr rAddr : -> Address .
+
+  ops qmin : -> QMinState .
+
+endm
+
+--- rtype unit tests
+red rtype(REC) == a .
+red rtype(RECALIAS) == cname .
+
+--- ownerName unit tests
+red ownerName(REC) == 'example . 'com . root .
+red ownerName(RECALIAS) == 'alias . 'example . 'com . root .
+
+--- rcode unit tests
+red rcode(response(1, 'www . 'example . 'com . root, nil, nil, nil, 0)) == 0 .
+red rcode(response(1, 'www . 'example . 'com . root, nil, nil, nil, 3)) == 3 .
+
+--- lastLabel unit tests
+red lastLabel('www . 'example . 'com . root) == root .
+red lastLabel('hello) == 'hello .
+
+--- match unit tests
+red match(a, a) .
+red match(a, anyType) .
+red match(anyType, a) .
+red match(soa, anyType) .
+red match(ns, anyType) .
+red not(match(ns, a)) .
+
+--- filterRType unit tests
+red filterRType(a, REC EXAMPLENSREC EXAMPLENSAREC) == REC EXAMPLENSAREC .
+red filterRType(soa, REC EXAMPLENSREC EXAMPLENSAREC) == nil .
+red filterRType(anyType, REC EXAMPLENSREC EXAMPLENSAREC) == REC EXAMPLENSREC EXAMPLENSAREC .
+
+--- removeDuplicates unit tests
+red removeDuplicates(REC RECALIAS) == REC RECALIAS .
+red removeDuplicates(REC RECALIAS REC) == REC RECALIAS .
+red removeDuplicates(REC REC) == REC .
+
+--- cacheToList unit tests
+red cacheToList(cacheEntry(REC, 1) cacheEntry(EXAMPLENSREC, 1)) == REC EXAMPLENSREC .
+
+--- listToCache unit tests
+red listToCache(REC EXAMPLENSREC, 1) == cacheEntry(REC, 1) cacheEntry(EXAMPLENSREC, 1) .
+
+--- minTTLInList unit tests
+red minTTLInList(nil) == 0.0 .
+red minTTLInList(
+    < 'com . root, ns, 100.0, 'ns1 . 'com . root >
+    < 'com . root, ns, 200.0, 'ns2 . 'com . root >
+) == 100.0 .
+red minTTLInList(
+    < 'com . root, ns, 200.0, 'ns1 . 'com . root >
+    < 'com . root, ns, 0.0, 'ns2 . 'com . root >
+) == 0.0 .
+
+--- clampTTL unit tests
+red clampTTL(100.0, 0.0, 200.0) == 100.0 .
+red clampTTL(100.0, 100.0, 100.0) == 100.0 .
+red clampTTL(0.0, 1.0, 200.0) == 1.0 .
+red clampTTL(100.0, 1.0, 50.0) == 50.0 .
+
+--- rrSetToCache unit tests
+red rrSetToCache(COMSOA COMNSREC1, 5, 0.0)
+  == cacheEntry(COMSOA, 5) cacheEntry(COMNSREC1, 5) .
+
+red rrSetToCache(
+    < 'com . root, ns, testTTL + 100.0, 'ns1 . 'com . root >
+    < 'com . root, ns, testTTL, 'ns2 . 'com . root >,
+    5, 1.0)
+  == cacheEntry(< 'com . root, ns, testTTL + 1.0, 'ns1 . 'com . root >, 5)
+     cacheEntry(< 'com . root, ns, testTTL + 1.0, 'ns2 . 'com . root >, 5) .
+
+--- convertTTLAbsToRel unit tests
+red convertTTLAbsToRel(
+    < 'com . root, soa, 900.0, nullAddr >
+    < 'com . root, ns, 1200.0, 'ns1 . 'com . root >,
+    300.0
+) == < 'com . root, soa, 600.0, nullAddr >
+     < 'com . root, ns, 900.0, 'ns1 . 'com . root > .
+
+red convertTTLAbsToRel(
+    < 'com . root, soa, 900.0, nullAddr >
+    < 'com . root, ns, 1200.0, 'ns1 . 'com . root >,
+    1000.0
+) == < 'com . root, soa, 0.0, nullAddr >
+     < 'com . root, ns, 200.0, 'ns1 . 'com . root > .
+
+--- convertTTLAbsToRelResponse unit tests
+red convertTTLAbsToRelResponse(
+    response(1, 'www . 'example . 'com . root,
+      nil,
+      < 'example . 'com . root, ns, 900.0, 'ns . 'example . 'com . root >,
+      < 'ns . 'example . 'com . root, a, 1200.0, 1 . 2 . 3 . 4 >,
+      0
+    ),
+    300.0
+) == response(1, 'www . 'example . 'com . root,
+       nil,
+       < 'example . 'com . root, ns, 600.0, 'ns . 'example . 'com . root >,
+       < 'ns . 'example . 'com . root, a, 900.0, 1 . 2 . 3 . 4 >,
+       0
+     ) .
+
+red convertTTLAbsToRelResponse(
+    response(1, 'www . 'example . 'com . root,
+      < 'example . 'com . root, ns, 900.0, 'ns . 'example . 'com . root >,
+      nil,
+      nil,
+      0
+    ),
+    300.0
+) == response(1, 'www . 'example . 'com . root,
+       < 'example . 'com . root, ns, 600.0, 'ns . 'example . 'com . root >,
+       nil,
+       nil,
+       0
+     ) .
+
+--- cacheGetCredRRset unit tests
+red cacheGetCredRRset('com . root, ns, cacheEntry(COMNSREC1, 1)) == 1 .
+red cacheGetCredRRset('com . root, ns, cacheEntry(REC, 5) cacheEntry(COMNSREC1, 1)) == 1 .
+red cacheGetCredRRset('com . root, ns, cacheEntry(REC, 1)) == 0 .
+
+--- cacheRemoveRRset unit tests
+red cacheRemoveRRset(
+    'com . root, ns,
+    cacheEntry(COMNSREC1, 1) cacheEntry(COMNSAREC1, 1) cacheEntry(COMNSREC2, 1)
+  ) == cacheEntry(COMNSAREC1, 1) .
+
+red cacheRemoveRRset(
+    'ns1 . 'com . root, a,
+    cacheEntry(COMNSREC1, 1) cacheEntry(COMNSAREC1, 1) cacheEntry(COMNSREC2, 1)
+  ) == cacheEntry(COMNSREC1, 1) cacheEntry(COMNSREC2, 1) .
+
+--- filterCacheCred unit tests
+red filterCacheCred(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), 5)
+  == REC RECALIAS .
+
+red filterCacheCred(cacheEntry(REC, 1) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 1), 5)
+  == nil .
+
+red filterCacheCred(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), 1)
+  == REC EXAMPLENSREC RECALIAS .
+
+--- filterRRset unit tests
+red filterRRset(
+    'example . 'com . root, anyType,
+    < 'com . root, a, testTTL, 192 . 0 . 2 . 1 > < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root >
+) == nil .
+
+red filterRRset(
+    'example . 'com . root, anyType,
+    < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root > REC
+) == REC .
+
+red filterRRset('example . 'com . root, a, REC) == REC .
+
+--- filterNotRRset
+red filterNotRRset(
+    'example . 'com . root, a,
+    < 'com . root, a, testTTL, 192 . 0 . 2 . 1 > < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root >
+) == < 'com . root, a, testTTL, 192 . 0 . 2 . 1 > < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root > .
+
+red filterNotRRset(
+    'example . 'com . root, a,
+    < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'net . root > REC
+) == < 'example . 'com . root, ns, testTTL, 'ns . 'example . 'net . root > .
+
+red filterNotRRset('example . 'com . root, a, REC) == nil .
+
+--- updateCacheRRsetCred unit tests
+red updateCacheRRsetCred(
+    cacheEntry(REC, 5) cacheEntry(COMNSREC1, 1) cacheEntry(COMNSREC2, 1), COMNSREC1, 5, 0.0)
+  == cacheEntry(REC, 5) cacheEntry(COMNSREC1, 5) .
+
+red updateCacheRRsetCred(
+    cacheEntry(REC, 5) cacheEntry(COMNSREC1, 1) cacheEntry(COMNSREC2, 1), COMNSREC1, 1, 0.0)
+  == cacheEntry(REC, 5) cacheEntry(COMNSREC1, 1) .
+
+red updateCacheRRsetCred(
+    cacheEntry(REC, 5), COMNSREC1 COMNSREC2, 1, 0.0)
+  == cacheEntry(REC, 5) cacheEntry(COMNSREC1, 1) cacheEntry(COMNSREC2, 1) .
+
+--- updateCacheCred unit tests
+red updateCacheCred(
+    nilCache, RECALIAS REC, 5, 0.0)
+  == cacheEntry(RECALIAS, 5) cacheEntry(REC, 5) .
+
+red updateCacheCred(
+    cacheEntry(REC, 1), RECALIAS REC, 5, 0.0)
+  == cacheEntry(RECALIAS, 5) cacheEntry(REC, 5) .
+
+red updateCacheCred(
+    cacheEntry(RECALIAS, 5), RECALIAS2 RECALIAS REC, 5, 0.0)
+  == cacheEntry(RECALIAS2, 5) cacheEntry(RECALIAS, 5) cacheEntry(REC, 5) .
+
+--- updateCacheAuthAns unit tests
+red updateCacheAuthAns(
+    nilCache, RECALIAS REC, 0.0)
+  == cacheEntry(RECALIAS, 5) cacheEntry(REC, 2) .
+
+red updateCacheAuthAns(
+    nilCache, RECALIAS2 RECALIAS REC, 0.0)
+  == cacheEntry(RECALIAS2, 5) cacheEntry(RECALIAS, 2) cacheEntry(REC, 2) .
+
+red updateCacheAuthAns(
+    cacheEntry(RECALIAS, 5), RECALIAS2 RECALIAS REC, 0.0)
+  == cacheEntry(RECALIAS, 5) cacheEntry(RECALIAS2, 5) cacheEntry(REC, 2) .
+
+red updateCacheAuthAns(
+    nilCache, RECDNAME RECSYNTH REC, 0.0)
+  == cacheEntry(RECDNAME, 5) cacheEntry(RECSYNTH, 5) cacheEntry(REC, 2) .
+
+--- updateNodataCache unit tests
+red updateNodataCache(
+    nilNodataCache,
+    'www . 'example . 'com . root, a, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 0, 0.0)
+  == nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNodataCache(
+    nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'www . 'example . 'com . root, a, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 0, 0.0)
+  == nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNodataCache(
+    nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    'alias . 'example . 'com . root, a,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 0, 0.0)
+  == nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNodataCache(
+    nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'alias . 'example . 'com . root, a,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 0, 0.0)
+  == nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2) .
+
+red updateNodataCache(
+    nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'something . 'example . 'com . root, a, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 3, 0.0)
+  == nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2) .
+
+red updateNodataCache(
+    nilNodataCache,
+    'something . 'example . 'com . root, a, nil, nil, 0, 0.0)
+  == nilNodataCache .
+
+red updateNodataCache(
+    nilNodataCache,
+    'www . 'example . 'com . root, a, < 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, nil, 0, 0.0)
+  == nilNodataCache .
+
+--- updateNxdomainCache unit tests
+red updateNxdomainCache(
+    nilNxdomainCache,
+    'www . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 3, 0.0)
+  == nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNxdomainCache(
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'www . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 3, 0.0)
+  == nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNxdomainCache(
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    'alias . 'example . 'com . root,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 3, 0.0)
+  == nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5) .
+
+red updateNxdomainCache(
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'alias . 'example . 'com . root,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 3, 0.0)
+  == nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2) .
+
+red updateNxdomainCache(
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    'something . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 0, 0.0)
+  == nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2) .
+
+red updateNxdomainCache(
+    nilNxdomainCache,
+    'something . 'example . 'com . root, nil, nil, 3, 0.0)
+  == nilNxdomainCache .
+
+red updateNxdomainCache(
+    nilNxdomainCache,
+    'www . 'example . 'com . root, < 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, nil, 0, 0.0)
+  == nilNxdomainCache .
+
+--- filterCacheTTLGreaterEqual unit tests
+red filterCacheTTLGreaterEqual(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), testTTL)
+  == cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5) .
+
+red filterCacheTTLGreaterEqual(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), testTTL + 1.0)
+  == nilCache .
+
+red filterCacheTTLGreaterEqual(
+    cacheEntry(< 'aaa . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, 5)
+    cacheEntry(< 'bbb . 'example . 'com . root, a, testTTL - 1.0, 2 . 3 . 4 . 5 >, 5)
+    cacheEntry(< 'ccc . 'example . 'com . root, a, testTTL + 1.0, 2 . 3 . 4 . 5 >, 5),
+    testTTL
+) == cacheEntry(< 'aaa . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, 5)
+     cacheEntry(< 'ccc . 'example . 'com . root, a, testTTL + 1.0, 2 . 3 . 4 . 5 >, 5) .
+
+--- filterCacheTTLGreaterThan unit tests
+red filterCacheTTLGreaterThan(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), testTTL)
+  == nilCache .
+
+red filterCacheTTLGreaterThan(cacheEntry(REC, 5) cacheEntry(EXAMPLENSREC, 1) cacheEntry(RECALIAS, 5), testTTL + 1.0)
+  == nilCache .
+
+red filterCacheTTLGreaterThan(
+    cacheEntry(< 'aaa . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, 5)
+    cacheEntry(< 'bbb . 'example . 'com . root, a, testTTL - 1.0, 2 . 3 . 4 . 5 >, 5)
+    cacheEntry(< 'ccc . 'example . 'com . root, a, testTTL + 1.0, 2 . 3 . 4 . 5 >, 5),
+    testTTL
+) == cacheEntry(< 'ccc . 'example . 'com . root, a, testTTL + 1.0, 2 . 3 . 4 . 5 >, 5) .
+
+--- filterNodataCacheTTLGreaterEqual unit tests
+red filterNodataCacheTTLGreaterEqual(
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL - 1.0, nullAddr >, 5)
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5),
+    testTTL
+) == nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+     nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5) .
+
+--- filterNodataCacheTTLGreaterThan unit tests
+red filterNodataCacheTTLGreaterThan(
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL - 1.0, nullAddr >, 5)
+    nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5),
+    testTTL
+) == nodataEntry('aaa . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5) .
+
+--- filterNxdomainCacheTTLGreaterEqual unit tests
+red filterNxdomainCacheTTLGreaterEqual(
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL - 1.0, nullAddr >, 5)
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5),
+    testTTL
+) == nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+     nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5) .
+
+--- filterNxdomainCacheTTLGreaterThan unit tests
+red filterNxdomainCacheTTLGreaterThan(
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL - 1.0, nullAddr >, 5)
+    nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5),
+    testTTL
+) == nxdomainEntry('aaa . 'example . 'com . root, < 'example . 'com . root, soa, testTTL + 1.0, nullAddr >, 5) .
+
+--- lookupNodataCache unit tests
+red lookupNodataCache('www . 'example . 'com . root, a,
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+red lookupNodataCache('www . 'example . 'com . root, a,
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    5)
+  == nil .
+
+red lookupNodataCache('www . 'example . 'com . root, a,
+    nodataEntry('example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == nil .
+
+red lookupNodataCache('www . 'example . 'com . root, a,
+    nodataEntry('example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nodataEntry('www . 'example . 'com . root, a, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+red lookupNodataCache('www . 'example . 'com . root, a,
+    nodataEntry('www . 'example . 'com . root, mx, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == nil .
+
+--- lookupNxdomainCacheExact unit tests
+red lookupNxdomainCacheExact('www . 'example . 'com . root,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+red lookupNxdomainCacheExact('www . 'example . 'com . root,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    5)
+  == nil .
+
+red lookupNxdomainCacheExact('www . 'example . 'com . root,
+    nxdomainEntry('example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == nil .
+
+red lookupNxdomainCacheExact('www . 'example . 'com . root,
+    nxdomainEntry('example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+--- lookupNxdomainCache unit tests
+red lookupNxdomainCache('www . 'example . 'com . root,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+red lookupNxdomainCache('something . 'nxdomain . 'example . 'com . root,
+    nxdomainEntry('nxdomain . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+red lookupNxdomainCache('something . 'nxdomain . 'example . 'com . root,
+    nxdomainEntry('nxdomain . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 2),
+    5)
+  == nil .
+
+red lookupNxdomainCache('www . 'example . 'com . root,
+    nxdomainEntry('example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5)
+    nxdomainEntry('www . 'example . 'com . root, < 'www . 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    5)
+  == < 'example . 'com . root, soa, testTTL, soaData(testTTL) > .
+
+--- findApplicableDName unit tests
+red findApplicableDName('www . 'dname . 'example . 'com . root, dbExampleDNAME) == EXAMPLEDNAME1 .
+red findApplicableDName('www . 'aaa . 'dname . 'example . 'com . root, dbExampleDNAME) == EXAMPLEDNAME1 .
+red findApplicableDName('dname . 'example . 'com . root, dbExampleDNAME) == nil .
+
+--- lookupRecords unit tests
+red lookupRecords(
+    'example . 'com . root, anyType,
+    < 'com . root, a, testTTL, 192 . 0 . 2 . 1 > < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root >
+) == nil .
+
+red lookupRecords(
+    'example . 'com . root, anyType,
+    < 'example . 'net . root, ns, testTTL, 'ns . 'example . 'net . root > REC
+) == REC .
+
+red lookupRecords('example . 'com . root, a, REC) == REC .
+
+--- responseFromCache unit tests
+red responseFromCache(1, 'www . 'example . 'com . root, a, nil,
+    nilCache,
+    nilNxdomainCache,
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    1, 'www . 'example . 'com . root)
+  == response(1, 'www . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, nil, 0) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a, nil,
+    nilCache,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    nilNodataCache,
+    1, 'www . 'example . 'com . root)
+  == response(1, 'www . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, nil, 3) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a, nil,
+    nilCache,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    1, 'www . 'example . 'com . root)
+  == response(1, 'www . 'example . 'com . root, nil, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, nil, 3) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a, nil,
+    cacheEntry(< 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, 5),
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    1, 'www . 'example . 'com . root)
+  == response(1, 'www . 'example . 'com . root, < 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, nil, nil, 0) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    cacheEntry(< 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, 5),
+    nilNxdomainCache,
+    nilNodataCache,
+    1, 'alias . 'example . 'com . root)
+  == response(1, 'alias . 'example . 'com . root,
+      < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >
+      < 'www . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >, nil, nil, 0) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    nilCache,
+    nxdomainEntry('www . 'example . 'com . root, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    nilNodataCache,
+    1, 'alias . 'example . 'com . root)
+  == response(1, 'alias . 'example . 'com . root,
+      < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+      < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, nil, 3) .
+
+red responseFromCache(1, 'www . 'example . 'com . root, a,
+    < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+    nilCache,
+    nilNxdomainCache,
+    nodataEntry('www . 'example . 'com . root, a, < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, 5),
+    1, 'alias . 'example . 'com . root)
+  == response(1, 'alias . 'example . 'com . root,
+      < 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >,
+      < 'example . 'com . root, soa, testTTL, soaData(testTTL) >, nil, 0) .
+
+red responseFromCache(1, 'alias2 . 'example . 'com . root, a,
+    CNAME1 CNAME2 CNAME3,
+    cacheEntry(CNAME1, 5) cacheEntry(CNAME2, 5) cacheEntry(CNAME3, 5),
+    nilNxdomainCache,
+    nilNodataCache,
+    1, 'alias1 . 'example . 'com . root)
+  == response(1, 'alias1 . 'example . 'com . root, nil, nil, nil, 2) . --- CNAME loop
+
+red responseFromCache(1, 'nx . 'dname1 . 'example . 'com . root, a,
+    < 'dname1 . 'example . 'com . root, dname, testTTL, 'dname2 . 'example . 'com . root >
+      < 'nx . 'dname1 . 'example . 'com . root, cname, testTTL, 'nx . 'dname2 . 'example . 'com . root >
+      < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+      < 'nx . 'dname2 . 'example . 'com . root, cname, testTTL, 'nx . 'dname1 . 'example . 'com . root >,
+    cacheEntry(< 'dname1 . 'example . 'com . root, dname, testTTL, 'dname2 . 'example . 'com . root >, 5)
+      cacheEntry(< 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >, 5),
+    nilNxdomainCache,
+    nilNodataCache,
+    1, 'nx . 'dname1 . 'example . 'com . root)
+  == response(1, 'nx . 'dname1 . 'example . 'com . root, nil, nil, nil, 2) . --- DNAME loop
+
+--- findBestCanonicalName unit tests
+red findBestCanonicalName('example . 'com . root, nil) == 'example . 'com . root .
+red findBestCanonicalName('example . 'com . root, REC) == 'example . 'com . root .
+red findBestCanonicalName('alias . 'example . 'com . root, nil) == 'alias . 'example . 'com . root .
+red findBestCanonicalName('alias . 'example . 'com . root, REC RECALIAS) == 'example . 'com . root .
+red findBestCanonicalName('alias . 'example . 'com . root,
+      < 'alias2 . 'example . 'com . root, cname, testTTL, 'alias . 'example . 'com . root > REC RECALIAS)
+  == 'example . 'com . root .
+
+red findBestCanonicalName('alias1 . 'example . 'com . root, CNAME1 CNAME2 CNAME3)
+  == 'alias2 . 'example . 'com . root .
+red findBestCanonicalName('alias2 . 'example . 'com . root, CNAME1 CNAME2 CNAME3)
+  == 'alias2 . 'example . 'com . root .
+
+red findBestCanonicalName('www . 'dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2)
+  == 'www . 'example . 'com . root .
+red findBestCanonicalName('ns . 'dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2)
+  == 'ns . 'example . 'com . root .
+red findBestCanonicalName('dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2)
+  == 'dname2 . 'example . 'com . root .
+red findBestCanonicalName('alias . 'example . 'com . root, RECALIAS EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME)
+   == 'alias . 'example . 'net . root . --- inconsistent cache
+
+red findBestCanonicalName(
+    'nx . 'dname1 . 'example . 'com . root,
+    < 'dname1 . 'example . 'com . root, dname, testTTL, 'dname2 . 'example . 'com . root >
+    < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+) == 'nx . 'dname1 . 'example . 'com . root . --- DNAME loop
+
+red findBestCanonicalName(
+    'alias . 'dname . 'example . 'com . root,
+    < 'dname . 'example . 'com . root, dname, testTTL, 'example2 . 'com . root >
+    < 'alias . 'example2 . 'com . root, cname, testTTL, 'alias . 'dname . 'example . 'com . root >
+) == 'alias . 'dname . 'example . 'com . root . --- mixed DNAME/CNAME loop
+
+red findBestCanonicalName(
+    'overflow . 'dname1 . 'example . 'com . root,
+    < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+    < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+) == 'overflow
+      . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'dname2 . 'example . 'com . root . --- max domain length exceeded
+
+--- findAnsChain unit tests
+red findAnsChain('example . 'com . root, nil, nil) == nil .
+red findAnsChain('example . 'com . root, REC, nil) == nil .
+red findAnsChain('alias . 'example . 'com . root, nil, nil) == nil .
+red findAnsChain('alias . 'example . 'com . root, REC RECALIAS, nil) == RECALIAS .
+red findAnsChain('alias . 'example . 'com . root,
+      < 'alias2 . 'example . 'com . root, cname, testTTL, 'alias . 'example . 'com . root > REC RECALIAS, nil)
+  == RECALIAS .
+
+red findAnsChain('alias1 . 'example . 'com . root, CNAME1 CNAME2 CNAME3, nil)
+  == CNAME1 CNAME2 CNAME3 .
+red findAnsChain('alias2 . 'example . 'com . root, CNAME1 CNAME2 CNAME3, nil)
+  == CNAME2 CNAME3 .
+
+red findAnsChain('www . 'dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2, nil)
+  == EXAMPLEDNAME2 < 'www . 'dname2 . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root > .
+red findAnsChain('ns . 'dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2, nil)
+  == EXAMPLEDNAME2 < 'ns . 'dname2 . 'example . 'com . root, cname, testTTL, 'ns . 'example . 'com . root > .
+red findAnsChain('dname2 . 'example . 'com . root, EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME2, nil)
+  == nil .
+red findAnsChain('alias . 'example . 'com . root, RECALIAS EXAMPLENSREC EXAMPLENSAREC EXAMPLEDNAME, nil)
+   == EXAMPLEDNAME < 'alias . 'example . 'com . root, cname, testTTL, 'alias . 'example . 'net . root > . --- inconsistent cache
+
+red findAnsChain(
+    'nx . 'dname1 . 'example . 'com . root,
+    < 'dname1 . 'example . 'com . root, dname, testTTL, 'dname2 . 'example . 'com . root >
+    < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >,
+    nil
+) == < 'dname1 . 'example . 'com . root, dname, testTTL, 'dname2 . 'example . 'com . root >
+     < 'nx . 'dname1 . 'example . 'com . root, cname, testTTL, 'nx . 'dname2 . 'example . 'com . root >
+     < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+     < 'nx . 'dname2 . 'example . 'com . root, cname, testTTL, 'nx . 'dname1 . 'example . 'com . root > . --- DNAME loop
+
+red findAnsChain(
+    'alias . 'dname . 'example . 'com . root,
+    < 'dname . 'example . 'com . root, dname, testTTL, 'example2 . 'com . root >
+    < 'alias . 'example2 . 'com . root, cname, testTTL, 'alias . 'dname . 'example . 'com . root >,
+    nil
+) == < 'dname . 'example . 'com . root, dname, testTTL, 'example2 . 'com . root >
+     < 'alias . 'dname . 'example . 'com . root, cname, testTTL, 'alias . 'example2 . 'com . root >
+     < 'alias . 'example2 . 'com . root, cname, testTTL, 'alias . 'dname . 'example . 'com . root > . --- mixed DNAME/CNAME loop
+
+red findAnsChain(
+    'overflow . 'dname1 . 'example . 'com . root,
+    < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+    < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >,
+    nil
+) == < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+     < 'overflow . 'dname1 . 'example . 'com . root, cname, testTTL,
+      'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+     < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+     < 'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root,
+      cname, testTTL,
+      'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname1 . 'example . 'com . root >
+     < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+     < 'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname1 . 'example . 'com . root,
+      cname, testTTL,
+      'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      . 'dname2 . 'example . 'com . root >
+     < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+     < 'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname2 . 'example . 'com . root,
+       cname, testTTL,
+       'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname1 . 'example . 'com . root >
+     < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root >
+     < 'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname1 . 'example . 'com . root,
+       cname, testTTL,
+       'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname2 . 'example . 'com . root >
+     < 'dname2 . 'example . 'com . root, dname, testTTL, 'dname1 . 'example . 'com . root >
+     < 'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname2 . 'example . 'com . root,
+       cname, testTTL,
+       'overflow . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       . 'dname1 . 'example . 'com . root >
+     < 'dname1 . 'example . 'com . root, dname, testTTL,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa . 'dname2 . 'example . 'com . root > . --- max domain length exceeded
+
+--- initSNAME unit tests
+red initSNAME('alias . 'example . 'com . root, a, EXAMPLECNAME1 EXAMPLECNAME2 REC, nil)
+  == 'example . 'com . root .
+red initSNAME('alias . 'example . 'com . root, anyType, EXAMPLECNAME1 EXAMPLECNAME2 REC, nil)
+  == 'alias . 'example . 'com . root .
+red initSNAME('alias . 'example . 'com . root, a, EXAMPLECNAME1 REC, nil)
+  == 'alias2 . 'example . 'com . root .
+red initSNAME('alias . 'example . 'com . root, a, EXAMPLECNAME1 EXAMPLECNAME2, nil)
+  == 'example . 'com . root .
+
+--- initAnsChain unit tests
+red initAnsChain('alias . 'example . 'com . root, a, EXAMPLECNAME1 EXAMPLECNAME2 REC, nil)
+  == EXAMPLECNAME1 EXAMPLECNAME2 .
+red initAnsChain('alias . 'example . 'com . root, anyType, EXAMPLECNAME1 EXAMPLECNAME2 REC, nil)
+  == nil .
+red initAnsChain('alias . 'example . 'com . root, a, EXAMPLECNAME1 REC, nil)
+  == EXAMPLECNAME1 .
+red initAnsChain('alias . 'example . 'com . root, a, EXAMPLECNAME1 EXAMPLECNAME2, nil)
+  == EXAMPLECNAME1 EXAMPLECNAME2 .
+
+--- initQMinSNAME unit tests
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nilNodataCache,
+    'example . 'com . root)
+  == 'sub . 'example . 'com . root .
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'sub . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == 'www . 'sub . 'example . 'com . root .
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == 'www . 'sub . 'example . 'com . root .
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 4, false),
+    nodataEntry('abc . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'abc . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == 'sub1 . 'example . 'com . root .
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == 'sub1 . 'example . 'com . root .
+red initQMinSNAME('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 1, 0, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, mx, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == 'www . 'sub2 . 'sub1 . 'example . 'com . root .
+
+--- initQMinState unit tests
+red initQMinState('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nilNodataCache,
+    'example . 'com . root)
+  == qminState('www . 'sub . 'example . 'com . root, 9, 3, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'sub . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub . 'example . 'com . root, 8, 2, true) .
+red initQMinState('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub . 'example . 'com . root, 8, 2, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 4, false),
+    nodataEntry('abc . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'abc . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 9, 3, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 4, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 9, 3, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 0, false),
+    nilNodataCache,
+    'example . 'com . root)
+  == qminState('www . 'sub . 'example . 'com . root, 9, 0, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub . 'example . 'com . root, 10, 1, false),
+    nodataEntry('sub . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'sub . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub . 'example . 'com . root, 8, 0, true) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 0, false),
+    nodataEntry('abc . 'example . 'com . root, a, EXAMPLESOA, 1)
+    nodataEntry('www . 'abc . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 9, 0, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 10, 0, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 9, 0, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 1, 0, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 0, 0, false) .
+red initQMinState('example . 'com . root, qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 0, 0, false),
+    nodataEntry('sub2 . 'sub1 . 'example . 'com . root, a, EXAMPLESOA, 1),
+    'example . 'com . root)
+  == qminState('www . 'sub2 . 'sub1 . 'example . 'com . root, 0, 0, true) .
+
+--- numLabels unit tests
+red numLabels('www . 'example . 'com . root) == 4 .
+red numLabels(root) == 1 .
+
+--- nameLength unit tests
+red nameLength('abc . 'com . root) == 9 .
+red nameLength('www . 'example . 'com . root) == 17 .
+red nameLength(label(1) . label(2) . 'example . 'com . root) == 17 .
+red nameLength(label(1) . label2(2, 3) . 'example . 'com . root) == 17 .
+
+--- qminAddLabels unit tests
+red qminAddLabels('com . root, qminState('www . 'example . 'com . root, 1, 1, false))
+  == 'example . 'com . root .
+red qminAddLabels('com . root, qminState('www . 'example . 'com . root, 1, 0, false))
+  == 'www . 'example . 'com . root .
+red qminAddLabels('com . root, qminState('www . 'example . 'com . root, 2, 0, false))
+  == 'example . 'com . root .
+red qminAddLabels('com . root, qminState('www . 'example . 'com . root, 3, 0, false))
+  == 'example . 'com . root .
+
+red qminAddLabels( --- the following are the example from RFC 9156, §2.3
+    root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      10, 4, false)
+) == '1 . root .
+red qminAddLabels(
+    '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      9, 3, false)
+) == '2 . '1 . root .
+red qminAddLabels(
+    '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      8, 2, false)
+) == '3 . '2 . '1 . root .
+red qminAddLabels(
+    '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      7, 1, false)
+) == '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      6, 0, false)
+) == '6 . '5 . '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '6 . '5 . '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      5, 0, false)
+) == '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      4, 0, false)
+) == '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      3, 0, false)
+) == '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      2, 0, false)
+) == '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root .
+red qminAddLabels(
+    '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+    qminState('18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root,
+      1, 0, false)
+) == '18 . '17 . '16 . '15 . '14 . '13 . '12 . '11 . '10 . '9 . '8 . '7 . '6 . '5 . '4 . '3 . '2 . '1 . root .
+
+--- isSingleId unit tests
+red isSingleId(1 .. ref .. ref) == false .
+red isSingleId(2 .. ref) == false .
+red isSingleId(1) == true .
+
+--- getClientId unit tests
+red getClientId(1 .. ref .. ref) == 1 .
+red getClientId(1 .. ref .. ref .. 2 .. 3) == 1 .
+red getClientId(1) == 1 .
+
+--- isClientQuery unit tests
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil, SBELT)) == true .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT)) == true .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. ref, qmin, nil, SBELT)) == true .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. cn .. ref, qmin, nil, SBELT)) == true .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT)) == false .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. 1, qmin, nil, SBELT)) == false .
+red isClientQuery(queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. 1 .. ref, qmin, nil, SBELT)) == false .
+
+--- isSingleLabel unit tests
+red isSingleLabel('example . 'com . root) == false .
+red isSingleLabel('com . root) == false .
+red isSingleLabel(root) == true .
+
+--- parentDomain unit tests
+red parentDomain('com . root) == root .
+red parentDomain('example . 'com . root) == 'com . root .
+red parentDomain('www . 'example . 'com . root) == 'example . 'com . root .
+
+--- findBestLocalNS unit tests
+red findBestLocalNS('example . 'com . root, nil) == nil .
+red findBestLocalNS('example . 'com . root, REC) == nil .
+red findBestLocalNS('example . 'com . root, REC EXAMPLENSREC) == EXAMPLENSREC .
+red findBestLocalNS('example . 'com . root, REC COMNSREC1 COMNSREC2 EXAMPLENSREC) == EXAMPLENSREC .
+red findBestLocalNS('example . 'com . root, REC COMNSREC1 COMNSREC2) == COMNSREC1 COMNSREC2 .
+red findBestLocalNS('example . 'com . root, REC NETNSREC) == nil .
+red findBestLocalNS('example . 'com . root, ROOTNSREC) == ROOTNSREC .
+
+--- occursNL unit tests
+red occursNL('example . 'com . root, ('www . 'example . 'com . root) ('com . root)) == false .
+red occursNL('example . 'com . root, ('www . 'example . 'com . root) ('example . 'com . root)) == true .
+
+--- circDepNS unit tests
+red circDepNS(
+    'www . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'www . 'domainA . 'nz . root,
+    cacheEntry(< 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'ns . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == true .
+
+red circDepNS(
+    'ns . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+    cacheEntry(< 'ns . 'domainB . 'nz . root, a, testTTL, 1 . 2 . 3 . 4 >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'ns . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+    cacheEntry(< 'ns . 'domainC . 'nz . root, a, testTTL, 1 . 2 . 3 . 4 >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'www . 'domainA . 'nz . root,
+    cacheEntry(< 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1)
+    cacheEntry(< 'domainC . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+    cacheEntry(< 'ns . 'domainC . 'nz . root, a, testTTL, 1 . 2 . 3 . 4 >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'ns . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainC . 'nz . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'ns . 'domainB . 'nz . root,
+    cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == true .
+
+red circDepNS(
+    'problem . 'attacker1 . 'com . root,
+    cacheEntry(< 'problem . 'attacker1 . 'com . root, ns, testTTL, 'alias . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'alias . 'attacker2 . 'net . root, cname, testTTL, 'problem . 'attacker1 . 'com . root >, 5),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'problem . 'attacker1 . 'com . root,
+    cacheEntry(< 'problem . 'attacker1 . 'com . root, cname, testTTL, 'problem2 . 'attacker1 . 'com . root >, 1)
+    cacheEntry(< 'problem2 . 'attacker1 . 'com . root, ns, testTTL, 'alias . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'alias . 'attacker2 . 'net . root, cname, testTTL, 'problem . 'attacker1 . 'com . root >, 5),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+red circDepNS(
+    'ns . 'attacker1 . 'com . root,
+    cacheEntry(< 'attacker1 . 'com . root, ns, testTTL, 'alias . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'alias . 'attacker2 . 'net . root, cname, testTTL, 'problem . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'problem . 'attacker2 . 'net . root, ns, testTTL, 'ns . 'attacker1 . 'com . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == true .
+
+red circDepNS(
+    'ns . 'attacker1 . 'com . root,
+    cacheEntry(< 'attacker1 . 'com . root, ns, testTTL, 'ns . 'dname . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'dname . 'attacker2 . 'net . root, dname, testTTL, 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'ns . 'attacker2 . 'net . root, cname, testTTL, 'something . 'attacker2 . 'net . root >, 1)
+    cacheEntry(< 'something . 'attacker2 . 'net . root, ns, testTTL, 'ns . 'attacker1 . 'com . root >, 1),
+    nilNxdomainCache, nilNodataCache
+) == true .
+
+red circDepNS(
+    'ns . 'attacker1 . 'com . root,
+    cacheEntry(< 'ns . 'attacker1 . 'com . root, cname, testTTL, root >, 5),
+    nilNxdomainCache, nilNodataCache
+) == false .
+
+--- addrOrNull unit tests
+red addrOrNull('example . 'com . root, COMNSREC1 REC COMNSREC2) == 192 . 0 . 2 . 1 .
+red addrOrNull('www . 'example . 'com . root, COMNSREC1 REC COMNSREC2) == nullAddr .
+red addrOrNull('www . 'example . 'com . root, nil) == nullAddr .
+red addrOrNull('alias . 'example . 'com . root, REC RECALIAS) == nullAddr .
+red addrOrNull('alias . 'example . 'com . root, RECALIAS) == nullAddr .
+
+--- createSLISTMap unit tests
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache)
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) .
+red createSLISTMap(EXAMPLENSALIASREC,
+    listToCache(REC EXAMPLENSALIASREC EXAMPLENSREC RECALIASNS, 1),
+    nilNxdomainCache, nilNodataCache)
+  == ('nsalias . 'example . 'com . root |-> nullAddr) .
+red createSLISTMap(EXAMPLENSALIASREC,
+    listToCache(REC EXAMPLENSALIASREC EXAMPLENSREC RECALIASNS EXAMPLENSAREC, 1),
+    nilNxdomainCache, nilNodataCache)
+  == ('nsalias . 'example . 'com . root |-> 99 . 0 . 0 . 1) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC1 NETNSREC, 1),
+    nxdomainEntry('ns2 . 'com . root, COMSOA, 1), nilNodataCache)
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nxdomainEntry('ns2 . 'com . root, COMSOA, 1), nilNodataCache)
+  == ('ns1 . 'com . root |-> nullAddr) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC1 NETNSREC, 1),
+    nilNxdomainCache, nodataEntry('ns2 . 'com . root, a, COMSOA, 1))
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1) .
+red createSLISTMap(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nilNxdomainCache, nodataEntry('ns2 . 'com . root, a, COMSOA, 1))
+  == ('ns1 . 'com . root |-> nullAddr) .
+
+--- createSLISTMapMax unit tests
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache, 2)
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache, 1)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache, 2)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) .
+red createSLISTMapMax(EXAMPLENSALIASREC,
+    listToCache(REC EXAMPLENSALIASREC EXAMPLENSREC RECALIASNS, 1),
+    nilNxdomainCache, nilNodataCache, 2)
+  == ('nsalias . 'example . 'com . root |-> nullAddr) .
+red createSLISTMapMax(EXAMPLENSALIASREC,
+    listToCache(REC EXAMPLENSALIASREC EXAMPLENSREC RECALIASNS EXAMPLENSAREC, 1),
+    nilNxdomainCache, nilNodataCache, 2)
+  == ('nsalias . 'example . 'com . root |-> 99 . 0 . 0 . 1) .
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache, 1)
+  == ('ns1 . 'com . root |-> nullAddr) .
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+    nilNxdomainCache, nilNodataCache, 0)
+  == ('ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red createSLISTMapMax(COMNSREC1 COMNSREC2,
+    listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 NETNSREC, 1),
+    nxdomainEntry('ns1 . 'com . root, COMSOA, 1), nilNodataCache, 1)
+  == ('ns2 . 'com . root |-> nullAddr) .
+
+--- initSLIST unit tests
+red initSLIST(
+  'www . 'example . 'com . root,
+  listToCache(REC COMNSREC1 COMNSREC2 COMNSAREC1 COMNSAREC2 NETNSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > .
+
+red initSLIST(
+  'www . 'example . 'com . root,
+  listToCache(REC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > .
+
+red initSLIST(
+  'www . 'example . 'com . root,
+  listToCache(REC COMNSREC1 COMNSREC2 NETNSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > .
+
+red initSLIST(
+  'www . 'example . 'com . root,
+  listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == < ('example . 'com . root) ('ns . 'example . 'com . root |-> nullAddr ) > .
+
+red initSLIST(
+  'www . 'example . 'com . root,
+  listToCache(REC NETNSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == SBELT .
+
+red initSLIST(
+  'ns . 'example . 'com . root, --- need to fall back to parent domain
+  listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'ns . 'example . 'com . root
+) == < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > .
+
+red initSLIST(
+  'ns . 'example . 'com . root, --- need to fall back to parent domain and then SBELT
+  listToCache(REC EXAMPLENSREC, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'ns . 'example . 'com . root
+) == SBELT .
+
+red initSLIST(
+  'ns1 . 'com . root, --- fall back to SBELT
+  listToCache(COMNSREC1 COMNSREC2 COMNSAREC2, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'ns1 . 'com . root
+) == SBELT .
+
+red initSLIST(
+  'ns . 'domainA . 'nz . root, --- fall back to SBELT
+  cacheEntry(< 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+  cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root >, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'ns . 'domainA . 'nz . root
+) == SBELT .
+
+red initSLIST(
+  'www . 'domainA . 'nz . root,
+  cacheEntry(< 'domainA . 'nz . root, ns, testTTL, 'ns . 'domainB . 'nz . root >, 1)
+  cacheEntry(< 'domainB . 'nz . root, ns, testTTL, 'ns . 'domainA . 'nz . root >, 1),
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'www . 'domainA . 'nz . root
+) == < ('domainA . 'nz . root) ('ns . 'domainB . 'nz . root |-> nullAddr) > .
+
+red initSLIST(
+  'www . 'example . 'com . root, --- the only name server name is known not to exist
+  listToCache(REC EXAMPLENSREC COMNSREC1 COMNSREC2 COMNSAREC2 NETNSREC, 1),
+  nxdomainEntry('ns . 'example . 'com . root, EXAMPLESOA, 1), nilNodataCache,
+  SBELT, 'www . 'example . 'com . root
+) == SBELT .
+
+red initSLIST(
+  'a . 'root-servers . 'net . root,
+  listToCache(REC ROOTNSREC, 1), --- root NS record is known, but not address
+  nilNxdomainCache, nilNodataCache,
+  SBELT, 'a . 'root-servers . 'net . root
+) == SBELT .
+
+--- nsToResolve unit tests
+red nsToResolve(< ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >)
+  == nilNL .
+red nsToResolve(< ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >)
+  == 'ns1 . 'com . root .
+red nsToResolve(< ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) >)
+  == ('ns1 . 'com . root) ('ns2 . 'com . root) .
+
+--- getNsQueries unit tests
+--- TODO: fix for QNAME minimization
+red getNsQueries(
+    < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >,
+    1, addr, nilCache, nilNxdomainCache, nilNodataCache, sb)
+  == eptQSS .
+
+red getNsQueries(
+    < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >,
+    1, addr, nilCache, nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1 .. 1, 'ns1 . 'com . root, a), addr, 'com . root, 1 .. 1,
+                  qminState('ns1 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) .
+
+red getNsQueries(
+    < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) >,
+    1, addr, nilCache, nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1 .. 1, 'ns1 . 'com . root, a), addr, 'com . root, 1 .. 1,
+                  qminState('ns1 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) ;;
+     queryState(query(1 .. 2, 'ns2 . 'com . root, a), addr, 'com . root, 1 .. 2,
+                  qminState('ns2 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) .
+
+red getNsQueries(
+    < ('example . 'com . root) ('nsalias . 'example . 'com . root |-> nullAddr) >,
+    1, addr, cacheEntry(RECALIASNS, 5) cacheEntry(EXAMPLENSALIASREC, 5), nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1 .. 1, 'nsalias . 'example . 'com . root, a), addr, 'com . root, 1 .. 1,
+                  qminState('ns . 'example . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false),
+                  RECALIASNS,
+                  sb) . --- circular dependency
+
+--- addResolverSubqueries unit tests
+red addResolverSubqueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >),
+    rAddr, nilCache, nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) .
+
+red addResolverSubqueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >),
+    rAddr, nilCache, nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) ;;
+     queryState(query(1 .. ref .. 1, 'ns1 . 'com . root, a), rAddr, 'com . root, 1 .. ref .. 1,
+      qminState('ns1 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) .
+
+red addResolverSubqueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >),
+    rAddr, listToCache(COMNSREC1 COMNSREC2 COMNSAREC2, 1), nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) >) ;;
+     queryState(query(1 .. ref .. 1, 'ns1 . 'com . root, a), rAddr, 'com . root, 1 .. ref .. 1,
+      qminState('ns1 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) .
+
+red addResolverSubqueries(
+    queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root,  1 .. ref, qmin, nil,
+      < ('example . 'com . root) ('ns . 'example . 'com . root |-> nullAddr) >),
+    rAddr, listToCache(EXAMPLENSREC COMNSREC1 COMNSREC2, 1), nilNxdomainCache, nilNodataCache, sb)
+  == queryState(query(1, 'www . 'example . 'com . root, a), cAddr, 'www . 'example . 'com . root, 1 .. ref, qmin, nil,
+      < ('example . 'com . root) ('ns . 'example . 'com . root |-> nullAddr) >) ;;
+     queryState(query(1 .. ref .. 1, 'ns . 'example . 'com . root, a), rAddr, 'example . 'com . root,
+      1 .. ref .. 1, qminState('ns . 'example . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) >) ;;
+     queryState(query(1 .. ref .. 1 .. 1, 'ns1 . 'com . root, a), rAddr, 'com . root,
+      1 .. ref .. 1 .. 1, qminState('ns1 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) ;;
+     queryState(query(1 .. ref .. 1 .. 2, 'ns2 . 'com . root, a), rAddr, 'com . root,
+      1 .. ref .. 1 .. 2, qminState('ns2 . 'com . root, maxMinimiseCount + (- 1), minimiseOneLab + (- 1), false), nil, sb) .
+
+--- hasKnownAddress unit tests
+red hasKnownAddress(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)) == true .
+red hasKnownAddress(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2)) == true .
+red hasKnownAddress(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr)) == false .
+
+--- nameIsInMap unit tests
+red nameIsInMap(('ns2 . 'com . root), ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr)) == true .
+red nameIsInMap(('example . 'com . root), ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr)) == false .
+
+--- splitQSSKnownAddr unit tests
+red splitQSSKnownAddr(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ))
+  == pairQSS(
+      queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+      queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+     ) .
+
+red splitQSSKnownAddr(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ))
+  == pairQSS(
+      queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+      queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+      eptQSS
+     ) .
+
+red splitQSSKnownAddr(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ))
+  == pairQSS(
+      eptQSS,
+      queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+      queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+     ) .
+
+--- splitQSSEmpty unit tests
+red splitQSSEmpty(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) empty > )
+) == pairQSS(
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil, < ('com . root) empty > ),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+) .
+
+red splitQSSEmpty(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )
+) == pairQSS(
+  eptQSS,
+  queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+  queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+    < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )
+ ) .
+
+--- removeFromIdNatMap unit tests
+red removeFromIdNatMap(1, (idNatEntry(1, 75), idNatEntry(2, 75))) == idNatEntry(2, 75) .
+red removeFromIdNatMap(2, (idNatEntry(1, 75), idNatEntry(2, 75))) == idNatEntry(1, 75) .
+red removeFromIdNatMap(3, (idNatEntry(1, 75), idNatEntry(2, 75))) == (idNatEntry(1, 75), idNatEntry(2, 75)) .
+red removeFromIdNatMap(1, (idNatEntry(1, 75), idNatEntry(1, 75))) == emptyIN . --- duplicate entry, should not happen
+
+--- cleanUpWorkBudget unit tests
+red cleanUpWorkBudget(
+    (idNatEntry(1, 75), idNatEntry(2, 75)),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT)
+) == (idNatEntry(1, 75), idNatEntry(2, 75)) .
+
+red cleanUpWorkBudget(
+    (idNatEntry(1, 75), idNatEntry(2, 75), idNatEntry(3, 75)),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT)
+) == (idNatEntry(1, 75), idNatEntry(2, 75)) .
+
+red cleanUpWorkBudget(
+    (idNatEntry(1, 75), idNatEntry(2, 75), idNatEntry(3, 75)),
+    eptQSS
+) == emptyIN .
+
+--- splitQSSWorkBudget unit tests
+red splitQSSWorkBudget(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(1, 75), idNatEntry(2, 75))
+) == tupleQSSQSSIdNatMap(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    eptQSS,
+    (idNatEntry(1, 73), idNatEntry(2, 75))
+) .
+
+red splitQSSWorkBudget(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(1, 75), idNatEntry(2, 75))
+) == tupleQSSQSSIdNatMap(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT ),
+    eptQSS,
+    (idNatEntry(1, 74), idNatEntry(2, 74))
+).
+
+red splitQSSWorkBudget(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(1, 1), idNatEntry(2, 75))
+) == tupleQSSQSSIdNatMap(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ),
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    idNatEntry(2, 75)
+) .  --- reaches zero
+
+red splitQSSWorkBudget(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(1, 2), idNatEntry(2, 75))
+) == tupleQSSQSSIdNatMap(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    eptQSS,
+    idNatEntry(2, 75)
+) .  --- reaches zero exactly
+
+red splitQSSWorkBudget(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(2, 1), idNatEntry(3, 75))
+) == tupleQSSQSSIdNatMap(
+    eptQSS,
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    (idNatEntry(2, 1), idNatEntry(3, 75))
+) .  --- id not present
+
+--- isIdPrefix unit tests
+red isIdPrefix(1 .. ref, 1 .. ref) == true .
+red isIdPrefix(1 .. ref, 2 .. ref) == false .
+red isIdPrefix(1 .. ref .. ref, 1 .. ref) == false .
+red isIdPrefix(1 .. ref, 1 .. ref .. ref) == true .
+red isIdPrefix(1 .. ref, 1 .. ref .. 2) == true .
+
+--- hasFollowUpQueryInQSS unit tests
+red hasFollowUpQueryInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT)
+) == true .
+
+red hasFollowUpQueryInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT)
+) == true .
+
+red hasFollowUpQueryInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil, SBELT)
+) == false .
+
+red hasFollowUpQueryInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT),
+    eptQSS
+) == false .
+
+--- hasFollowUpQueryInQSSForId unit tests
+red hasFollowUpQueryInQSSForId(
+    1, queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil, SBELT)
+) == true .
+
+red hasFollowUpQueryInQSSForId(
+    1, queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT)
+) == true .
+
+red hasFollowUpQueryInQSSForId(
+    1,
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 3, qmin, nil, SBELT) ;;
+      queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT)
+) == true .
+
+red hasFollowUpQueryInQSSForId(
+    1, queryState(q1, 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 3, qmin, nil, SBELT)
+) == false .
+
+--- filterQSSClientQueriesToAbort unit tests
+red filterQSSClientQueriesToAbort(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) .
+
+red filterQSSClientQueriesToAbort(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. ref, qmin, nil, SBELT ),
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. ref .. 2, qmin, nil, SBELT )
+) == queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+     queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. ref, qmin, nil, SBELT ) .
+
+red filterQSSClientQueriesToAbort(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT ),
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == eptQSS .
+
+--- filterQSSNotFollowUpOfOriginalAborted unit tests
+red filterQSSNotFollowUpOfOriginalAborted(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    queryState(query(1 .. ref .. 1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT )
+) == eptQSS .
+
+red filterQSSNotFollowUpOfOriginalAborted(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT )
+) == queryState(query(1 .. ref .. 1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) .
+
+red filterQSSNotFollowUpOfOriginalAborted(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. ref, qmin, nil, SBELT ),
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1 .. 1, qmin, nil, SBELT )
+) == eptQSS .
+
+--- filterQSSNotFollowUpOfId unit tests
+red filterQSSNotFollowUpOfId(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    1
+) == eptQSS .
+
+red filterQSSNotFollowUpOfId(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(1 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ),
+    2
+) == queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+     queryState(query(1 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) .
+
+red filterQSSNotFollowUpOfId(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref, qmin, nil, SBELT ) ;;
+    queryState(query(2 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT ),
+    1
+) == queryState(query(2 .. ref .. 1, 'ns . 'net . root, a), 1 . 2 . 3 . 4, 'com . root, 2 .. ref .. 1, qmin, nil, SBELT ) .
+
+--- idInQSS unit tests
+red idInQSS(
+    1 .. ref,
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == false .
+
+red idInQSS(
+    1 .. ref .. 2,
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == true .
+
+red idInQSS(1 .. ref, eptQSS) == false .
+
+--- idInQSSOriginal unit tests
+red idInQSSOriginal(
+    1,
+    queryState(query(1 .. init .. 1 .. ref, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'com . root, mx), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == false .
+
+red idInQSSOriginal(
+    1,
+    queryState(query(1 .. init .. 1 .. ref, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(query(1, 'com . root, mx), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == true .
+
+red idInQSSOriginal(1 .. ref, eptQSS) == false .
+
+--- splitQSSInQSS unit tests
+red splitQSSInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+) == pairQSS(
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+) .
+
+red splitQSSInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > )
+) == pairQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ),
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > )
+) .
+
+red splitQSSInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    eptQSS
+) == pairQSS(
+    eptQSS,
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > )
+) .
+
+red splitQSSInQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > )
+) == pairQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 2, qmin, nil,
+      < ('com . root) empty > ),
+    eptQSS
+) .
+
+
+--- enhanceSLISTMap unit tests
+red enhanceSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr),
+      < 'ns2 . 'com . root, a, testTTL, 100 . 0 . 0 . 2 >)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+
+red enhanceSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr),
+      < 'ns1 . 'com . root, a, testTTL, 100 . 0 . 0 . 1 > < 'ns2 . 'com . root, a, testTTL, 100 . 0 . 0 . 2 >)
+  == ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+
+red enhanceSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2),
+      < 'ns2 . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) . --- do not overwrite existing data
+
+--- enhanceSLISTsOfQSS unit tests
+red enhanceSLISTsOfQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+    < 'ns1 . 'com . root, a, testTTL, 100 . 0 . 0 . 1 >)
+  == (queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+     queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )) .
+
+red enhanceSLISTsOfQSS(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+    < 'ns . 'example . 'com . root, a, testTTL, 1 . 5 . 5 . 5 > < 'ns2 . 'com . root, a, testTTL, 1 . 1 . 1 . 1 >)
+  == (queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )) . --- nothing useful learned
+
+--- namesForAddressSLIST unit tests
+red namesForAddressSLIST(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2),
+      100 . 0 . 0 . 2)
+  == 'ns2 . 'com . root .
+red namesForAddressSLIST(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2),
+      100 . 0 . 0 . 3)
+  == nilNL .
+red namesForAddressSLIST(('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 1),
+      100 . 0 . 0 . 1)
+  == ('ns1 . 'com . root) ('ns2 . 'com . root) .
+
+--- removeNameFromSLISTMap unit tests
+red removeNameFromSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'ns2 . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr) .
+red removeNameFromSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'nxdomain . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) .
+
+--- removeNamesFromSLISTMap unit tests
+red removeNamesFromSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'ns2 . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr) .
+red removeNamesFromSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'nxdomain . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) .
+red removeNamesFromSLISTMap(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr),
+    ('ns1 . 'com . root) ('ns2 . 'com . root))
+  == empty .
+
+--- removeNameFromSLISTMapIfNullAddr unit tests
+red removeNameFromSLISTMapIfNullAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'ns2 . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr) .
+red removeNameFromSLISTMapIfNullAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2), 'ns2 . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) .
+red removeNameFromSLISTMapIfNullAddr(('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr), 'nxdomain . 'com . root)
+  == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) .
+
+--- removeNameFromSLISTsOfQSSIfNullAddr unit tests
+red removeNameFromSLISTsOfQSSIfNullAddr(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ),
+    'ns2 . 'com . root)
+  == (queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > )) .
+
+red removeNameFromSLISTsOfQSSIfNullAddr(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ),
+    'ns2 . 'com . root)
+  == (queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr) > )) .
+
+red removeNameFromSLISTsOfQSSIfNullAddr(
+   queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+    'nxdomain . 'com . root)
+  == (queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > )) . --- name not present
+
+red removeNameFromSLISTsOfQSSIfNullAddr(
+    queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+      'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+      qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('ns . 'attacker . 'com . root |-> nullAddr) >) ;;
+    queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'ns . 'attacker . 'com . root, 1,
+      qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('nxns . 'com . root |-> nullAddr) >),
+    'nxns . 'com . root)
+  == queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+     'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+      qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) empty > ) ;;
+     queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'ns . 'attacker . 'com . root, 1,
+      qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) empty >) .
+
+red removeNameFromSLISTsOfQSSIfNullAddr(
+    queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+     'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+      qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('ns . 'attacker . 'com . root |-> nullAddr) >) ;;
+    queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'attacker . 'com . root, 1,
+      qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('nxns . 'com . root |-> nullAddr) >),
+    'nxns . 'com . root)
+  == queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+     'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+      qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) empty > ) ;;
+     queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'attacker . 'com . root, 1,
+      qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) empty >) .
+
+--- removeNamesWithoutSubqueriesFromSLISTMap unit tests
+red removeNamesWithoutSubqueriesFromSLISTMap(
+    ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr),
+    queryState(query(1 .. init .. 1, 'ns1 . 'com . root, a), 1 . 2 . 3 . 4, 'ns1 . 'com . root, 1 .. init .. 1 .. ref,
+      qmin, nil, sb),
+    1 .. init
+) == ('ns1 . 'com . root |-> nullAddr) .
+
+red removeNamesWithoutSubqueriesFromSLISTMap(
+    ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 1 . 2 . 3 . 4),
+    queryState(query(1 .. init .. 1, 'ns1 . 'com . root, a), 1 . 2 . 3 . 4, 'ns1 . 'com . root, 1 .. init .. 1 .. ref,
+      qmin, nil, sb),
+    1 .. init
+) == ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 1 . 2 . 3 . 4) .
+
+red removeNamesWithoutSubqueriesFromSLISTMap(
+    ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 1 . 2 . 3 . 4),
+    eptQSS,
+    1 .. init
+) == ('ns2 . 'com . root |-> 1 . 2 . 3 . 4) .
+
+--- updateSLISTsOfQSSs unit tests
+red updateSLISTsOfQSSs(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+    eptQSS,
+    response(1 .. ref .. 1, 'ns1 . 'com . root, < 'ns1 . 'com . root, a, testTTL, 100 . 0 . 0 . 1 >, nil, nil, 0)
+) == pairQSS(
+      queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+      queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qmin, nil,
+        < ('com . root) ('ns1 . 'com . root |-> 100 . 0 . 0 . 1, 'ns2 . 'com . root |-> 100 . 0 . 0 . 2) > ),
+      eptQSS
+     ) .
+
+red updateSLISTsOfQSSs(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ),
+    eptQSS,
+    response(1 .. ref .. 1, 'ns2 . 'com . root, nil, < 'com . root, soa, testTTL, soaData(testTTL) >, nil, 0)
+) == pairQSS(
+      queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+      queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ),
+      eptQSS
+     ) .
+
+red updateSLISTsOfQSSs(
+    queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ) ;;
+    queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+      < ('com . root) ('ns1 . 'com . root |-> nullAddr, 'ns2 . 'com . root |-> nullAddr) > ),
+    eptQSS,
+    response(1 .. ref .. 1, 'ns2 . 'com . root, nil, < 'com . root, soa, testTTL, soaData(testTTL) >, nil, 3)
+) == pairQSS(
+      queryState(query(1, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ) ;;
+      queryState(query(2, 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1, qminState('com . root, 1, 1, true), nil,
+        < ('com . root) ('ns1 . 'com . root |-> nullAddr) > ),
+      eptQSS
+     ) .
+
+red updateSLISTsOfQSSs(
+    queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'ns . 'attacker . 'com . root, 2,
+      qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('nxns . 'com . root |-> nullAddr) >),
+    queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+      'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+      qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+      < ('com . root) ('ns . 'attacker . 'com . root |-> nullAddr) >),
+    response(1 .. ref .. 1, 'nxns . 'com . root, nil, < 'com . root, soa, testTTL, soaData(testTTL) >, nil, 3)
+) == pairQSS(
+      queryState(query(2, 'ns . 'attacker . 'com . root, a), 1 . 2 . 3 . 4, 'ns . 'attacker . 'com . root, 2,
+        qminState('ns . 'attacker . 'com . root, 1, 1, true), nil,
+        < ('com . root) empty >),
+      queryState(query(1, 'nxdomain . 'sd0 . 'attacker . 'com . root, a), 1 . 2 . 3 . 4,
+        'nxdomain . 'sd0 . 'attacker . 'com . root, 1,
+        qminState('nxdomain . 'sd0 . 'attacker . 'com . root, 1, 1, true), nil,
+        < ('com . root) empty > )
+) .
+
+--- nearestAncestorSOA unit tests
+red nearestAncestorSOA('www . 'example . 'com . root, REC EXAMPLESOA COMSOA) == EXAMPLESOA .
+red nearestAncestorSOA('example . 'com . root, REC EXAMPLESOA COMSOA) == EXAMPLESOA .
+red nearestAncestorSOA('microsoft . 'com . root, REC EXAMPLESOA COMSOA) == COMSOA .
+red nearestAncestorSOA('www . 'example . 'com . root, dbRoot) == ROOTSOA .
+
+--- oneLabelDown unit tests
+red oneLabelDown('www . 'example . 'com . root, 'com . root) == 'example . 'com . root .
+red oneLabelDown('www . 'example . 'com . root, 'example . 'com . root) == 'www . 'example . 'com . root .
+red oneLabelDown('www . 'example . 'com . root, root) == 'com . root .
+
+--- nLabelsDown unit tests
+red nLabelsDown('www . 'example . 'com . root, 'com . root, 1) == 'example . 'com . root .
+red nLabelsDown('www . 'example . 'com . root, 'com . root, 2) == 'www . 'example . 'com . root .
+
+--- nodeExists unit tests
+red nodeExists('example . 'com . root, EXAMPLESOA) == true . --- node is non-empty
+red nodeExists('example . 'com . root, REC) == true . --- non-empty subnode
+red nodeExists('example . 'com . root, COMNSREC1 REC) == true .
+red nodeExists('example . 'com . root, COMNSREC1) == false .
+
+--- getCanonicalName unit tests
+red getCanonicalName(< 'alias . 'example . 'com . root, cname, testTTL, 'www . 'example . 'com . root >)
+  == 'www . 'example . 'com . root .
+
+--- synthesizeRecs unit tests
+red synthesizeRecs(
+    'qname . 'example . 'com . root,
+    < wildcard . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >
+    < wildcard . 'example . 'com . root, a, testTTL, 5 . 6 . 7 . 8 >
+) == (
+  < 'qname . 'example . 'com . root, a, testTTL, 1 . 2 . 3 . 4 >
+  < 'qname . 'example . 'com . root, a, testTTL, 5 . 6 . 7 . 8 >
+) .
+
+--- dnameSubstitution unit tests
+red dnameSubstitution('com . root, EXAMPLEDNAME) == nullName .
+red dnameSubstitution('example . 'com . root, EXAMPLEDNAME) == nullName .
+red dnameSubstitution('a . 'example . 'com . root, EXAMPLEDNAME)
+  == 'a . 'example . 'net . root .
+red dnameSubstitution('a . 'b . 'example . 'com . root, EXAMPLEDNAME)
+  == 'a . 'b . 'example . 'net . root .
+red dnameSubstitution('ab . 'example . 'com . root,
+     < 'b . 'example . 'com . root, dname, testTTL, 'example . 'net . root >)
+  == nullName .
+red dnameSubstitution('foo . 'example . 'com . root, EXAMPLEDNAME)
+  == 'foo . 'example . 'net . root .
+red dnameSubstitution('a . 'x . 'example . 'com . root,
+     < 'x . 'example . 'com . root, dname, testTTL, 'example . 'net . root >)
+  == 'a . 'example . 'net . root .
+red dnameSubstitution('a . 'example . 'com . root,
+     < 'example . 'com . root, dname, testTTL, 'y . 'example . 'net . root >)
+  == 'a . 'y . 'example . 'net . root .
+red dnameSubstitution('cyc . 'example . 'com . root,
+     < 'example . 'com . root, dname, testTTL, 'example . 'com . root >)
+  == 'cyc . 'example . 'com . root .
+red dnameSubstitution('cyc . 'example . 'com . root,
+     < 'example . 'com . root, dname, testTTL, 'c . 'example . 'com . root >)
+  == 'cyc . 'c . 'example . 'com . root .
+red dnameSubstitution('shortloop . 'x . 'x . root,
+     < 'x . root, dname, testTTL, root >)
+  == 'shortloop . 'x . root .
+red dnameSubstitution('shortloop . 'x . root,
+     < 'x . root, dname, testTTL, root >)
+  == 'shortloop . root .
+
+--- dnameSynthesis unit tests
+red dnameSynthesis('a . 'example . 'com . root,
+    EXAMPLEDNAME)
+  == < 'a . 'example . 'com . root, cname, testTTL, 'a . 'example . 'net . root > .
+
+--- matchDown unit tests
+red matchDown(1, 'com . root, anyType, dbCOM)
+  == response(1, 'com . root, COMSOA COMNSREC1 COMNSREC2, nil, nil, 0) . --- top node of the zone
+red matchDown(1, 'ns1 . 'com . root, a, dbCOM)
+  == response(1, 'ns1 . 'com . root, COMNSAREC1, nil, nil, 0) . --- authoritative answer
+red matchDown(1, 'example . 'com . root, anyType, dbCOM)
+  == response(1, 'example . 'com . root, nil, EXAMPLENSREC, EXAMPLENSAREC, 0) . --- referral despite matching records
+red matchDown(1, 'www . 'example . 'com . root, a, dbCOM)
+  == response(1, 'www . 'example . 'com . root, nil, EXAMPLENSREC, EXAMPLENSAREC, 0) . --- referral
+red matchDown(1, 'www . 'sd1 . 'subs . 'example . 'com . root, anyType, dbExample)
+  == response(1, 'www . 'sd1 . 'subs . 'example . 'com . root, nil,
+              < 'sd1 . 'subs . 'example . 'com . root, ns, testTTL, 'ns . 'sd1 . 'subs . 'example . 'com . root >, nil, 0) . --- referral with empty node
+red matchDown(1, 'www . 'subs . 'example . 'com . root, anyType, dbExample)
+  == response(1, 'www . 'subs . 'example . 'com . root,
+            < 'www . 'subs . 'example . 'com . root, a, testTTL, 1 . 1 . 1 . 1 >, nil, nil, 0) . --- authoritative with empty node
+red matchDown(1, 'www . 'example . 'com . root, anyType, dbRoot)
+  == response(1, 'www . 'example . 'com . root, nil, COMNSREC1 COMNSREC2, COMNSAREC1 COMNSAREC2, 0) .
+red matchDown(1, 'nxdomain . 'example . 'com . root, anyType, dbExample)
+  == response(1, 'nxdomain . 'example . 'com . root, nil, EXAMPLESOA, nil, 3) . --- authoritative name error
+red matchDown(1, 'nxdomain . 'com . root, a, dbCOM)
+  == response(1, 'nxdomain . 'com . root, nil, COMSOA, nil, 3) . --- authoritative name error
+red matchDown(1, 'subs . 'example . 'com . root, anyType, dbExample)
+  == response(1, 'subs . 'example . 'com . root, nil, EXAMPLESOA, nil, 0) . --- no data response
+red matchDown(1, 'subs . 'example . 'com . root, a, dbExample)
+  == response(1, 'subs . 'example . 'com . root, nil, EXAMPLESOA, nil, 0) . --- no data response
+red matchDown(1, 'nxdomain . 'com . root, anyType, dbExample)
+  == response(1, 'nxdomain . 'com . root, nil, nil, nil, 5) . --- error (wrong name server)
+red matchDown(1, 'alias . 'subs . 'example . 'com . root, anyType, dbExample)
+  == response(1, 'alias . 'subs . 'example . 'com . root, EXAMPLECNAME, nil, nil, 0) . --- CNAME
+
+red matchDown(1, 'alias . 'example . 'com . root, anyType, dbExample EXAMPLECNAME1 EXAMPLECNAME2)
+  == response(1, 'alias . 'example . 'com . root, EXAMPLECNAME1, nil, nil, 0) . --- CNAME because anyType
+red matchDown(1, 'alias . 'example . 'com . root, soa, dbExample EXAMPLECNAME1 EXAMPLECNAME2)
+  == response(1, 'alias . 'example . 'com . root, EXAMPLECNAME1 EXAMPLECNAME2 EXAMPLESOA, nil, nil, 0) . --- follow CNAMEs
+red matchDown(1, 'alias . 'example . 'com . root, a, dbExample EXAMPLECNAME1 EXAMPLECNAME2)
+  == response(1, 'alias . 'example . 'com . root, EXAMPLECNAME1 EXAMPLECNAME2, EXAMPLESOA, nil, 0) . --- follow CNAMES, but no data
+red matchDown(1, 'aliasext . 'example . 'com . root, a, dbExample EXAMPLECNAME1 EXAMPLECNAME2 EXAMPLECNAMEEXT)
+  == response(1, 'aliasext . 'example . 'com . root, EXAMPLECNAMEEXT, nil, nil, 0) . --- follow CNAMES, not auth
+red matchDown(1, 'alias2 . 'example . 'com . root, a, dbExample EXAMPLECNAMENX)
+  == response(1, 'alias2 . 'example . 'com . root, EXAMPLECNAMENX, EXAMPLESOA, nil, 3) . --- single CNAME with NXDOMAIN
+red matchDown(1, 'alias . 'example . 'com . root, a, dbExample EXAMPLECNAME1 EXAMPLECNAMENX)
+  == response(1, 'alias . 'example . 'com . root, EXAMPLECNAME1 EXAMPLECNAMENX, EXAMPLESOA, nil, 3) . --- CNAME chain with NXDOMAIN
+
+red matchDown(1, 'host3 . 'example . root, mx, dbWildcardExample) --- the following are the examples from RFC 4592, §2.2.1
+  == response(1, 'host3 . 'example . root, < 'host3 . 'example . root, mx, testTTL, nullAddr >, nil, nil, 0) .
+red matchDown(1, 'host3 . 'example . root, a, dbWildcardExample)
+  == response(1, 'host3 . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 0) .
+red matchDown(1, 'foo . 'bar . 'example . root, txt, dbWildcardExample)
+  == response(1, 'foo . 'bar . 'example . root, < 'foo . 'bar . 'example . root, txt, testTTL, nullAddr >, nil, nil, 0) .
+red matchDown(1, 'host1 . 'example . root, mx, dbWildcardExample)
+  == response(1, 'host1 . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 0) .
+red matchDown(1, 'sub . wildcard . 'example . root, mx, dbWildcardExample)
+  == response(1, 'sub . wildcard . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 0) .
+red matchDown(1, '_telnet . '_tcp . 'host1 . 'example . root, srv, dbWildcardExample)
+  == response(1, '_telnet . '_tcp . 'host1 . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 3) .
+red matchDown(1, 'host . 'subdel . 'example . root, a, dbWildcardExample)
+  == response(1, 'host . 'subdel . 'example . root, nil,
+      < 'subdel . 'example . root, ns, testTTL, 'ns . 'example . 'com . root >
+      < 'subdel . 'example . root, ns, testTTL, 'ns . 'example . 'net . root >,
+      nil, 0) .
+red matchDown(1, 'ghost . wildcard . 'example . root, mx, dbWildcardExample)
+  == response(1, 'ghost . wildcard . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 3) .
+
+red matchDown(1, 'host3 . 'sub . 'example . root, cname, dbWildcardExtended)
+  == response(1, 'host3 . 'sub . 'example . root,
+        < 'host3 . 'sub . 'example . root, cname, testTTL, 'host1 . 'example . root >, nil, nil, 0) . --- synthesized CNAME
+red matchDown(1, 'host3 . 'sub . 'example . root, a, dbWildcardExtended)
+  == response(1, 'host3 . 'sub . 'example . root,
+        < 'host3 . 'sub . 'example . root, cname, testTTL, 'host1 . 'example . root >
+          < 'host1 . 'example . root, a, testTTL, 192 . 0 . 2 . 1 >,
+        nil, nil, 0) . --- synthesized CNAME and query rewriting
+
+red matchDown(1, wildcard . 'example . root, mx, dbWildcardExtended)
+  == response(1, wildcard . 'example . root, < wildcard . 'example . root, mx, testTTL, nullAddr >, nil, nil, 0) .
+red matchDown(1, wildcard . 'sub . 'example . root, cname, dbWildcardExtended)
+  == response(1, wildcard . 'sub . 'example . root,
+        < wildcard . 'sub . 'example . root, cname, testTTL, 'host1 . 'example . root >, nil, nil, 0) .
+
+red matchDown(1, 'host1 . 'subsubsub . 'subsub . wildcard . 'sub . 'example . root, a, dbWildcardExtended)
+  == response(1, 'host1 . 'subsubsub . 'subsub . wildcard . 'sub . 'example . root,
+        < 'host1 . 'subsubsub . 'subsub . wildcard . 'sub . 'example . root, a, testTTL, 1 . 2 . 3 . 4 >, nil, nil, 0) .
+
+red matchDown(1, 'www . wildcard . 'example . root, txt, dbWildcardZone) --- the example from RFC 4592, §4.1
+  == response(1, 'www . wildcard . 'example . root,
+        < 'www . wildcard . 'example . root, txt, testTTL, nullAddr >, nil, nil, 0) .
+
+red matchDown(1, 'host1 . 'sub2 . 'example . root, a, dbWildcardExtended)
+  == response(1, 'host1 . 'sub2 . 'example . root, nil, < 'example . root, soa, testTTL, soaData(testTTL) >, nil, 0) . --- source of synthesis exists, but is empty non-terminal
+
+red matchDown(1, 'www . 'dname . 'example . 'com . root, a, dbExampleDNAME) --- normal DNAME substitution
+  == response(1, 'www . 'dname . 'example . 'com . root,
+      EXAMPLEDNAME1 < 'www . 'dname . 'example . 'com . root, cname, testTTL, 'www . 'example . 'net . root >,
+      nil, nil, 0) .
+
+red matchDown(1, 'dname . 'example . 'com . root, txt, dbExampleDNAME) --- QNAME is DNAME owner, but different type
+  == response(1, 'dname . 'example . 'com . root, nil, EXAMPLESOA, nil, 0) .
+
+red matchDown(1, 'dname . 'example . 'com . root, a, dbExampleDNAME) --- QNAME is DNAME owner, type exists
+  == response(1, 'dname . 'example . 'com . root, EXAMPLEAATDNAME, nil, nil, 0) .
+
+red matchDown(1, 'dname . 'example . 'com . root, dname, dbExampleDNAME) --- query for the dname record
+  == response(1, 'dname . 'example . 'com . root,
+      EXAMPLEDNAME1, nil, nil, 0) .
+
+red matchDown(1, 'www . 'dname . 'example . 'com . root, cname, dbExampleDNAME) --- query for synthesized CNAME record
+  == response(1, 'www . 'dname . 'example . 'com . root,
+      EXAMPLEDNAME1 < 'www . 'dname . 'example . 'com . root, cname, testTTL, 'www . 'example . 'net . root >,
+      nil, nil, 0) .
+
+red matchDown(1, 'ns . 'dname2 . 'example . 'com . root, a, dbExampleDNAME) --- query rewriting occurs
+  == response(1, 'ns . 'dname2 . 'example . 'com . root,
+      EXAMPLEDNAME2 < 'ns . 'dname2 . 'example . 'com . root, cname, testTTL, 'ns . 'example . 'com . root >
+        EXAMPLENSAREC,
+      nil, nil, 0) .
+
+red matchDown(1, 'ns . 'dname2 . 'dname2 . 'example . 'com . root, a, dbExampleDNAME) --- query rewriting short loop
+  == response(1, 'ns . 'dname2 . 'dname2 . 'example . 'com . root,
+      EXAMPLEDNAME2
+        < 'ns . 'dname2 . 'dname2 . 'example . 'com . root, cname, testTTL, 'ns . 'dname2 . 'example . 'com . root >
+        < 'ns . 'dname2 . 'example . 'com . root, cname, testTTL, 'ns . 'example . 'com . root >
+        EXAMPLENSAREC,
+      nil, nil, 0) .
+
+red matchDown(1, 'www . 'example . 'com . root, a, dbExampleDNAMEApex) --- DNAME substitution at zone apex
+  == response(1, 'www . 'example . 'com . root,
+      EXAMPLEDNAME < 'www . 'example . 'com . root, cname, testTTL, 'www . 'example . 'net . root >,
+      nil, nil, 0) .
+
+red matchDown(1, 'example . 'com . root, a, dbExampleDNAMEApex) --- DNAME at zone apex, but no substitution
+  == response(1, 'example . 'com . root, nil, EXAMPLESOA, nil, 0) .
+
+red matchDown(1, 'example . 'com . root, dname, dbExampleDNAMEApex) --- query for DNAME at zone apex
+  == response(1, 'example . 'com . root, EXAMPLEDNAME, nil, nil, 0) .
+
+red matchDown(1, 'overflow . 'dnamelong . 'example . 'com . root, a, dbExampleDNAME) --- substitution overflows max domain length
+  == response(1, 'overflow . 'dnamelong . 'example . 'com . root,
+      EXAMPLEDNAMELONG, nil, nil, 6) .
+
+--- findGlue unit tests
+red findGlue(COMNSREC1 COMNSREC2, dbCOM) == COMNSAREC1 COMNSAREC2 .
+red findGlue(COMNSREC1, dbCOM) == COMNSAREC1 .
+red findGlue(nil, dbCOM) == nil .
+
+--- matchCount unit tests
+red matchCount(root, root) == 1 .
+red matchCount('example . 'com . root, 'com . root ) == 2 .
+red matchCount('example . 'com . root, 'example . 'com . root ) == 3 .
+red matchCount('com . root, 'example . 'com . root) == 0 .
+red matchCount('error . 'com . root, 'example . 'com . root) == 0 .
+
+--- isCloser unit tests
+red isCloser('example . 'com . root, 'com . root, root) == true .
+red isCloser('www . 'example . 'com . root, 'example . 'com . root, root) == true .
+red isCloser('www . 'example . 'com . root, 'example . 'com . root, 'com . root) == true .
+red isCloser('example . 'com . root, 'com . root, 'com . root) == false . --- no improvement
+red isCloser('example . 'com . root, 'net . root, 'com . root) == false . --- bogus answer
+
+--- delegationIsBetter unit tests
+red delegationIsBetter('www . 'example . 'com . root, COMNSREC1 COMNSREC2, root) == true .
+red delegationIsBetter('www . 'example . 'com . root, EXAMPLENSREC, root) == true .
+red delegationIsBetter('www . 'example . 'com . root, EXAMPLENSREC, 'com . root) == true .
+red delegationIsBetter('www . 'example . 'com . root, EXAMPLENSREC, 'example . 'com . root) == false . --- no improvement
+red delegationIsBetter('www . 'example . 'com . root, EXAMPLENSREC COMNSREC1, 'com . root) == false .
+
+--- inAddrList unit tests
+red inAddrList(1 . 2 . 3 . 4, 1 . 1 . 1 . 1 ; 1 . 2 . 3 . 4) == true .
+red inAddrList(1 . 2 . 3 . 4, 1 . 2 . 3 . 4) == true .
+red inAddrList(1 . 2 . 3 . 4, 1 . 1 . 1 . 1 ; 1 . 2 . 2 . 2) == false .
+
+--- queueSize unit tests
+red queueSize(queueEntry(q1, addr) queueEntry(q2, addr)) == 2 .
+red queueSize(queueEntry(q1, addr)) == 1 .
+
+--- sizeQSSFloat unit tests
+red sizeQSSFloat(
+    queryState(q1, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(q2, 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT )
+) == 2.0 .
+
+--- hasActorWithAddr unit tests
+red hasActorWithAddr(< 1 . 2 . 3 . 4 : Nameserver | noneAS >, 1 . 2 . 3 . 4) == true .
+red hasActorWithAddr(< 1 . 2 . 3 . 4 : Nameserver | noneAS >, 1 . 1 . 1 . 1) == false .
+red hasActorWithAddr(< 1 . 2 . 3 . 4 : Nameserver | noneAS >
+                     < 5 . 6 . 7 . 8 : Client | noneAS >, 5 . 6 . 7 . 8) == true .
+
+--- idFloatMapForQSS unit tests
+red idFloatMapForQSS(
+    queryState(query(1, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 1, qmin, nil, SBELT ) ;;
+    queryState(query(2, 'www . 'example . 'com . root, a), 1 . 2 . 3 . 4, 'com . root, 1 .. ref .. 2, qmin, nil, SBELT ),
+    10.0
+) == (idFloatEntry(1, 10.0), idFloatEntry(2, 10.0)) .

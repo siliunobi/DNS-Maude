@@ -1,0 +1,373 @@
+load ../../src/probabilistic-model/dns
+load ../common/attacker
+
+mod ATTACKER is
+  inc DNS + ATTACKER-COMMON .
+
+  --- Variables
+  vars CL RSV NS ADDR MON : Address .
+  var ID : Id .
+  vars NAME NAME' NAME'' QNAME : Name .
+  var QTYPE : RType .
+  vars ANS AUTH ADD DB : List{Record} .
+  vars QS QS' QS'' QS''' : List{Query} .
+  vars IAF IAF' : IdAddrFloatMap .
+  vars AF AF' : AddrFloatMap .
+  var TAQL : TupleAddrQueryList .
+  var TARL : TupleAddrRespList .
+  vars STATE STATE' : AttributeSet .
+  vars N N' N'' N''' RCODE : Nat .
+  var STATUS : Status .
+  var T : Float . --- timestamp
+  vars F TTL : Float .
+  var ACTOR : ActorType .
+  var RESP : Response .
+
+  --- Attributes, some shared among different actors
+  op counter:_ : Nat -> Attribute .
+  op namePrefix:_ : Name -> Attribute .
+  op numFakeLabels:_ : Nat -> Attribute .
+  op numFakeDel:_ : Nat -> Attribute .
+  op status:_ : Status -> Attribute .
+  op atkrRate:_ : Float -> Attribute .
+  op ttl:_ : Float -> Attribute .
+  op allQueries:_ : List{Query} -> Attribute .
+  op nsDelay:_ : Float -> Attribute .
+
+  sort Status .
+  ops running stopped : -> Status .
+
+  --- Trigger messages
+  op atkrSendNext : -> Content . --- trigger for attacker client to send next query
+
+  -------------------------
+  --- [NXDOMAIN CLIENT] ---
+  -------------------------
+  --- A malicious client that sends queries for different non-existent subdomains of a given domain.
+  --- The client keeps sending queries until it receives a special stop message.
+  --- The malicious client is parametric in:
+  ---  * Target domain (i.e., the domain for which non-existent subdomains are queried)
+  ---  * Number of non-existent labels that are added to create a non-existent subdomain (cf. QNAME minimization)
+  ---  * Rate at which queries are being sent
+  op NxdomainClient : -> ActorType .
+
+  --- A convenience function to easily obtain an NxdomainClient. The returned Config contains both the malicious client
+  ---   and the trigger message to start.
+  --- Args:
+  ---  * Address for malicious client
+  ---  * Domain prefix: queries are created for non-existent subdomains of this domain
+  ---  * Number of non-existent labels to append to the domain prefix
+  ---  * Resolver address
+  ---  * Sending rate
+  op nxdomainClient : Address Name Nat Address Float -> Config .
+  eq nxdomainClient(ADDR, NAME, N, RSV, F)
+    = < ADDR : NxdomainClient | counter: 0,
+                                namePrefix: NAME,
+                                numFakeLabels: N,
+                                resolver: RSV,
+                                status: running,
+                                atkrRate: F >
+      [atkrInitDelay, to ADDR from ADDR : atkrSendNext, 0] . --- start trigger message
+
+  --- > Receive trigger message and send next attacker query.
+  --- Notes:
+  ---  * The client uses one resolver.
+  rl [nxdomain-client-send-next] :
+  < MON : Monitor | msgsSent: IAF', totalSent: AF', clQueryLog: TAQL, STATE' >
+  < CL : NxdomainClient | counter: N,
+                          namePrefix: NAME,
+                          numFakeLabels: N',
+                          resolver: RSV,
+                          status: STATUS,
+                          atkrRate: F,
+                          STATE >
+  {T, to CL from CL : atkrSendNext}
+=>
+  < MON : Monitor | msgsSent: (if monitorDetailedMsgStats? then incr(clientId(CL, N), CL, IAF') else IAF' fi),
+                    totalSent: incrAF(CL, AF'),
+                    clQueryLog: (if monitorQueryLog?
+                                  then tupleAddrQuery(CL, query(clientId(CL, N), fakeName(N, N', NAME), a)) TAQL
+                                  else TAQL
+                                fi),
+                    STATE' >
+  < CL : NxdomainClient | counter: s N,
+                          namePrefix: NAME,
+                          numFakeLabels: N',
+                          resolver: RSV,
+                          status: STATUS,
+                          atkrRate: F,
+                          STATE >
+  if STATUS == running then
+    [delay, to RSV from CL : query(clientId(CL, N), fakeName(N, N', NAME), a), drop?]
+    [sampleExp(F), to CL from CL : atkrSendNext, 0]
+  else
+    null
+  fi .
+
+  --------------------------
+  --- [REPEATING CLIENT] ---
+  --------------------------
+  --- A generic repeating client that sends the same queries over and over again, until it receives a special stop
+  --- message.
+  --- The repeating client is parametric in:
+  ---  * List of queries to repeat
+  ---  * Rate at which queries are being sent
+  op RepeatingClient : -> ActorType .
+
+  --- A convenience function to easily obtain a repeating client. The returned Config contains both the repeating
+  ---   client and the trigger message to start.
+  --- Args:
+  ---  * Address for repeating client
+  ---  * Resolver address
+  ---  * List of queries that should be repeated
+  ---  * Sending rate
+  op repeatingClient : Address Address List{Query} Float -> Config .
+  eq repeatingClient(ADDR, RSV, QS, F)
+    = < ADDR : RepeatingClient | counter: 0,
+                                 resolver: RSV,
+                                 queries: QS,
+                                 allQueries: QS,
+                                 status: running,
+                                 atkrRate: F >
+      [atkrInitDelay, to ADDR from ADDR : atkrSendNext, 0] . --- start trigger message
+
+  --- > Receive trigger message and send next attacker query.
+  --- Notes:
+  ---  * The client uses one resolver.
+  crl [repeating-client-send-next] :
+  < MON : Monitor | msgsSent: IAF', totalSent: AF', clQueryLog: TAQL, STATE' >
+  < CL : RepeatingClient | counter: N,
+                           resolver: RSV,
+                           queries: QS,
+                           allQueries: QS',
+                           status: STATUS,
+                           atkrRate: F,
+                           STATE >
+  {T, to CL from CL : atkrSendNext}
+=>
+  < MON : Monitor | msgsSent: (if monitorDetailedMsgStats? then incr(clientId(CL, N), CL, IAF') else IAF' fi),
+                    totalSent: incrAF(CL, AF'),
+                    clQueryLog: (if monitorQueryLog?
+                                  then tupleAddrQuery(CL, query(clientId(CL, N), NAME, QTYPE)) TAQL
+                                  else TAQL
+                                fi),
+                    STATE' >
+  < CL : RepeatingClient | counter: s N,
+                           resolver: RSV,
+                           queries: QS''',
+                           allQueries: QS',
+                           status: STATUS,
+                           atkrRate: F,
+                           STATE >
+  (if STATUS == running then
+    [delay, to RSV from CL : query(clientId(CL, N), NAME, QTYPE), drop?]
+    [sampleExp(F), to CL from CL : atkrSendNext, 0]
+  else
+    null
+  fi)
+  if
+     --- Start next iteration through list if necessary
+     QS'' := if QS =/= nil then QS else QS' fi /\
+     query(ID, NAME, QTYPE) QS''' := QS''
+     .
+
+  -----------------------------------
+  --- [MALICIOUS CLIENT - COMMON] ---
+  -----------------------------------
+  --- The rules below model common functionality of both NxdomainClients and RepeatingClients.
+
+  --- > Receive stop signal, change status.
+  crl [malicious-client-stop] :
+  < CL : ACTOR | status: running, STATE >
+  {T, to CL from ADDR : stopSignal}
+=>
+  < CL : ACTOR | status: stopped, STATE >
+  if
+     ACTOR == NxdomainClient or ACTOR == RepeatingClient .
+
+  --- > Receive and discard response from resolver.
+  crl [malicious-client-recv-response] :
+  < MON : Monitor | msgsRcv: IAF, totalRcv: AF, clRespLog: TARL, STATE' >
+  < CL : ACTOR | resolver: RSV, STATE >
+  {T, to CL from RSV : response(ID, QNAME, ANS, AUTH, ADD, RCODE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, CL, IAF) else IAF fi),
+                    totalRcv: incrAF(CL, AF),
+                    clRespLog: (if monitorQueryLog?
+                                  then tupleAddrResp(CL, response(ID, QNAME, ANS, AUTH, ADD, RCODE)) TARL
+                                  else TARL
+                               fi),
+                    STATE' >
+  < CL : ACTOR | resolver: RSV, STATE >
+  if
+     ACTOR == NxdomainClient or ACTOR == RepeatingClient .
+
+  -----------------------------------
+  --- [MALICIOUS NXNS NAMESERVER] ---
+  -----------------------------------
+  --- A malicious name server for an NXNS Attack. The name server responds to queries by sending a large number of
+  --- delegations to non-existent name servers.
+  --- The malicious NXNS name server is parametric in:
+  ---  * Target domain for the delegations, i.e., the fake name servers are located below this domain
+  ---  * Number of fake delegations that are sent for each query
+  ---  * Number of non-existent labels to append to the domain prefix (cf. QNAME minimization)
+  ---  * TTL for the NS records
+  op MaliciousNXNSNameserver : -> ActorType .
+
+  --- A convenience function to easily obtain a malicious NXNS name server. Note that it is still necessary to insert
+  --- the delegation to the attacker's zone in the parent zone.
+  --- Args:
+  ---  * Address for malicious name server
+  ---  * Domain prefix: target domain for the delegations, i.e., the fake name servers are located below this domain
+  ---  * Number of fake delegations to create for each query
+  ---  * Number of non-existent labels to append to the domain prefix
+  ---  * TTL for the NS records
+  op maliciousNXNSNameserver : Address Name Nat Nat Float -> Config .
+  eq maliciousNXNSNameserver(ADDR, NAME, N, N', TTL)
+    = < ADDR : MaliciousNXNSNameserver | counter: 0,
+                                         namePrefix: NAME,
+                                         numFakeDel: N,
+                                         numFakeLabels: N',
+                                         ttl: TTL > .
+
+  --- > Receive query from resolver and respond with a fake delegation.
+  --- Notes:
+  ---  * This rule does not enforce name server resource bounds. The query is answered immediately, with zero
+  ---    processing delay.
+  rl [malicious-nxns-nameserver-recv-query-unbounded] :
+  < MON : Monitor | msgsRcv: IAF, msgsSent: IAF', totalRcv: AF, totalSent: AF', nsQueryLog: TAQL, STATE' >
+  < NS : MaliciousNXNSNameserver | counter: N, numFakeDel: N', numFakeLabels: N'', namePrefix: NAME', ttl: TTL, STATE >
+  {T, to NS from RSV : query(ID, QNAME, QTYPE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    msgsSent: (if monitorDetailedMsgStats? then incr(ID, NS, IAF') else IAF' fi),
+                    totalRcv: incrAF(NS, AF),
+                    totalSent: incrAF(NS, AF'),
+                    nsQueryLog: (if monitorQueryLog? then tupleAddrQuery(NS, query(ID, QNAME, QTYPE)) TAQL else TAQL fi),
+                    STATE' >
+  < NS : MaliciousNXNSNameserver | counter: (N + N'), numFakeDel: N', numFakeLabels: N'', namePrefix: NAME', ttl: TTL, STATE >
+  [delay, to RSV from NS : response(ID, QNAME, nil, fakeDelegationRecords(N', N, N'', QNAME, NAME', TTL), nil, 0), drop?] .
+
+  -----------------------------------
+  --- [MALICIOUS iDNS NAMESERVER] ---
+  -----------------------------------
+  --- A malicious name server for an iDNS attack (indefinitely delegating name server). The name server responds to
+  --- each query with a glueless delegation to a sibling domain, s.t. the resolver needs to query the same name server
+  --- again, leading to a long delegation chain
+  --- The malicious iDNS name server is parametric in:
+  ---  * Number of delegations that are sent for each query
+  ---  * Number of non-existent labels to append to the domain prefix (cf. QNAME minimization)
+  ---  * TTL for the NS records
+  op MaliciousIDNSNameserver : -> ActorType .
+
+  --- A convenience function to easily obtain a malicious iDNS name server. Note that it is still necessary to insert
+  --- the delegation to the attacker's zone in the parent zone.
+  --- Args:
+  ---  * Address for malicious name server
+  ---  * Domain prefix: target domain for the delegations
+  ---  * Number of delegations to create for each query
+  ---  * Number of non-existent labels to append to the delegation target
+  ---  * TTL for the NS records
+  op maliciousIDNSNameserver : Address Name Nat Nat Float -> Config .
+  eq maliciousIDNSNameserver(ADDR, NAME, N, N', TTL)
+    = < ADDR : MaliciousIDNSNameserver | namePrefix: NAME,
+                                         numFakeDel: N,
+                                         numFakeLabels: N',
+                                         ttl: TTL > .
+
+  --- > Receive minimized query from resolver and respond with a NODATA response (with a synthesized, fake SOA record).
+  --- Notes:
+  ---  * This rule does not enforce name server resource bounds. The query is answered immediately, with zero
+  ---    processing delay.
+  crl [malicious-idns-nameserver-recv-minimized-query-unbounded] :
+  < MON : Monitor | msgsRcv: IAF, msgsSent: IAF', totalRcv: AF, totalSent: AF', nsQueryLog: TAQL, STATE' >
+  < NS : MaliciousIDNSNameserver | numFakeDel: N, numFakeLabels: N', namePrefix: NAME', ttl: TTL, STATE >
+  {T, to NS from RSV : query(ID, QNAME, QTYPE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    msgsSent: (if monitorDetailedMsgStats? then incr(ID, NS, IAF') else IAF' fi),
+                    totalRcv: incrAF(NS, AF),
+                    totalSent: incrAF(NS, AF'),
+                    nsQueryLog: (if monitorQueryLog? then tupleAddrQuery(NS, query(ID, QNAME, QTYPE)) TAQL else TAQL fi),
+                    STATE' >
+  < NS : MaliciousIDNSNameserver | numFakeDel: N, numFakeLabels: N', namePrefix: NAME', ttl: TTL, STATE >
+  [delay, to RSV from NS : response(ID, QNAME, nil, < NAME', soa, TTL, soaData(TTL) >, nil, 0), drop?]
+  if
+     --- QNAME is a subdomain of namePrefix
+     NAME'' . NAME' := QNAME /\
+     --- Not the full QNAME (but a minimized version)
+     numLabels(NAME'') <= N' .
+
+  --- > Receive query from resolver and respond with a fake delegation.
+  --- Notes:
+  ---  * This rule does not enforce name server resource bounds. The query is answered immediately, with zero
+  ---    processing delay.
+  crl [malicious-idns-nameserver-recv-full-query-unbounded] :
+  < MON : Monitor | msgsRcv: IAF, msgsSent: IAF', totalRcv: AF, totalSent: AF', nsQueryLog: TAQL, STATE' >
+  < NS : MaliciousIDNSNameserver | numFakeDel: N, numFakeLabels: N', namePrefix: NAME', ttl: TTL, STATE >
+  {T, to NS from RSV : query(ID, QNAME, QTYPE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    msgsSent: (if monitorDetailedMsgStats? then incr(ID, NS, IAF') else IAF' fi),
+                    totalRcv: incrAF(NS, AF),
+                    totalSent: incrAF(NS, AF'),
+                    nsQueryLog: (if monitorQueryLog? then tupleAddrQuery(NS, query(ID, QNAME, QTYPE)) TAQL else TAQL fi),
+                    STATE' >
+  < NS : MaliciousIDNSNameserver | numFakeDel: N, numFakeLabels: N', namePrefix: NAME', ttl: TTL, STATE >
+  [delay, to RSV from NS :
+    response(ID, QNAME, nil, fakeDelegationRecords(N, N'', N', QNAME, label2(N'', s N''') . NAME', TTL), nil, 0), drop?]
+  if
+     --- QNAME is a subdomain of namePrefix
+     NAME'' . NAME' := QNAME /\
+     --- Full QNAME (not a minimized version)
+     numLabels(NAME'') == s N' /\
+     --- Extract the relevant part (delegation level)
+     label2(N'', N''') := lastLabel(NAME'') .
+
+  ----------------------------
+  --- [DELAYED NAMESERVER] ---
+  ----------------------------
+  --- A name server that answers queries correctly, but with a configurable delay.
+  op DelayedNameserver : -> ActorType .
+
+  --- > Receive query from resolver, "match down" in the database and send a delayed response.
+  crl [delayed-nameserver-recv-query-unbounded] :
+  < MON : Monitor | msgsRcv: IAF, msgsSent: IAF', totalRcv: AF, totalSent: AF', nsQueryLog: TAQL, nsRespLog: TARL, STATE' >
+  < NS : DelayedNameserver | db: DB, nsDelay: F, STATE >
+  {T, to NS from RSV : query(ID, QNAME, QTYPE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    msgsSent: (if monitorDetailedMsgStats? then incr(ID, NS, IAF') else IAF' fi),
+                    totalRcv: incrAF(NS, AF),
+                    totalSent: incrAF(NS, AF'),
+                    nsQueryLog: (if monitorQueryLog? then tupleAddrQuery(NS, query(ID, QNAME, QTYPE)) TAQL else TAQL fi),
+                    nsRespLog: (if monitorQueryLog? then tupleAddrResp(NS, RESP) TARL else TARL fi),
+                    STATE' >
+  < NS : DelayedNameserver | db: DB, nsDelay: F, STATE >
+  [delay + F, to RSV from NS : RESP, drop?]
+  if RESP := matchDown(ID, QNAME, QTYPE, DB) .
+
+  ---------------------------------
+  --- [UNRESPONSIVE NAMESERVER] ---
+  ---------------------------------
+  --- A "name server" that just drops any query it receives. This can be useful to model a victim host that receives
+  --- many queries.
+  --- In contrast to the dropMsgsForNXActors? config option (which enables dropping of messages to non-existent
+  --- actors), this rule still updates the monitor statistics, and hence allows to see how many queries were sent to
+  --- this address.
+  op UnresponsiveNameserver : -> ActorType .
+
+  --- > Receive query from resolver and drop it.
+  --- Notes:
+  ---  * This rule can be used to model an inexistent name server.
+  rl [unresponsive-nameserver-drop-query] :
+  < MON : Monitor | msgsRcv: IAF, totalRcv: AF, STATE' >
+  < NS : UnresponsiveNameserver | STATE >
+  {T, to NS from RSV : query(ID, QNAME, QTYPE)}
+=>
+  < MON : Monitor | msgsRcv: (if monitorDetailedMsgStats? then incr(ID, NS, IAF) else IAF fi),
+                    totalRcv: incrAF(NS, AF),
+                    STATE' >
+  < NS : UnresponsiveNameserver | STATE > .
+
+endm

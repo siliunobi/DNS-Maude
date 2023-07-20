@@ -1,0 +1,106 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+
+--- This is the "NZ event" as described in the tsuNAME paper
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  eq configTsuNAMEslistCircDep = true . --- enable TsuNAME-like resolver behavior
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'www . 'domainA . 'nz . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNSnz addrNS1a addrNS2a addrNS1b addrNS2b : -> Address .
+
+  ops zoneRoot zoneNZ zoneDomainA zoneDomainB : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot > --- actually, not authoritative, but unimportant for this example
+
+    --- non-authoritative data
+    < 'nz . root, ns, testTTL, 'ns . 'nz . root >
+    < 'ns . 'nz . root, a, testTTL, addrNSnz > . --- glue
+
+  eq zoneNZ =
+    --- authoritative data
+    < 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'nz . root, ns, testTTL, 'ns . 'nz . 'root >
+    < 'ns . 'nz . root, a, testTTL, addrNSnz >
+
+    --- non-authoritative data
+    < 'domainA . 'nz . root, ns, testTTL, 'ns1 . 'domainB . 'nz . root >
+    < 'domainA . 'nz . root, ns, testTTL, 'ns2 . 'domainB . 'nz . root > --- in-bailiwick sibling domain, i.e., glue is optional
+
+    < 'domainB . 'nz . root, ns, testTTL, 'ns1 . 'domainA . 'nz . root >
+    < 'domainB . 'nz . root, ns, testTTL, 'ns2 . 'domainA . 'nz . root > . --- in-bailiwick sibling domain, i.e., glue is optional
+
+  eq zoneDomainA =
+    --- authoritative data
+    < 'domainA . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainA . 'nz . root, ns, testTTL, 'ns1 . 'domainB . 'nz . root >
+    < 'domainA . 'nz . root, ns, testTTL, 'ns2 . 'domainB . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  eq zoneDomainB =
+    --- authoritative data
+    < 'domainB . 'nz . root, soa, testTTL, soaData(testTTL) >
+    < 'domainB . 'nz . root, ns, testTTL, 'ns1 . 'domainA . 'nz . root >
+    < 'domainB . 'nz . root, ns, testTTL, 'ns2 . 'domainA . 'nz . root > . --- out-of-bailiwick, i.e., no glue allowed
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: nilCache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .nz authoritative name server
+    < addrNSnz : Nameserver | db: zoneNZ, queue: nilQueue >
+    --- SLD name servers
+    < addrNS1a : Nameserver | db: zoneDomainB, queue: nilQueue >
+    < addrNS2a : Nameserver | db: zoneDomainB, queue: nilQueue >
+    < addrNS1b : Nameserver | db: zoneDomainA, queue: nilQueue >
+    < addrNS2b : Nameserver | db: zoneDomainA, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+rew msgAmpFactor(cAddr ; addrNS1a ; addrNS1b ; addrNS2a ; addrNS2b, addrNSnz, initConfig) .

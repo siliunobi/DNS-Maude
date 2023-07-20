@@ -1,0 +1,10 @@
+resolver,zone,delay,result,query
+resolver-unbound-1.16.0,n10-n15,0,17,q.a.com A
+resolver-unbound-1.16.0,n5-n7,0,17,q.a.com A
+resolver-unbound-1.16.0,n6-n4,0,17,q.a.com A
+resolver-powerdns-4.7,n10-n15,0,57,q.a.com A
+resolver-powerdns-4.7,n5-n7,0,41,q.a.com A
+resolver-powerdns-4.7,n6-n4,0,31,q.a.com A
+resolver-bind-9.18.4,n10-n15,0,36,q.a.com A
+resolver-bind-9.18.4,n5-n7,0,36,q.a.com A
+resolver-bind-9.18.4,n6-n4,0,26,q.a.com A

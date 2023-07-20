@@ -1,0 +1,85 @@
+load ../src/nondet-model/dns
+load ../src/nondet-model/properties
+--- Requires the environment variable MAUDE_LIB to be set!
+load model-checker
+
+mod DNS-PREDS is
+  pr DNS .
+  inc SATISFACTION .
+  inc PROPERTIES .
+
+  subsort Config < State .
+
+  var C : Config .
+  vars AL AL' : AddrList .
+  var F : Float .
+
+  --- Message amplification factor
+  ---  i.e., #messages RECEIVED by the victim's actors divided by #messages SENT by the attacker's actors
+  --- Args: attacker's actors, victim's actors, threshold
+  op propMsgAmpFactorGT : AddrList AddrList Float -> Prop .
+  eq C |= propMsgAmpFactorGT(AL, AL', F) = msgAmpFactorTerminal(AL, AL', C) > F .
+
+  --- Query cycle: The SAME name server is asked MULTIPLE TIMES for the SAME query.
+  ---   Same query means that the later query is a follow-up query of the earlier one, and that the QNAME is the same.
+  op propRepeatedQuery : -> Prop .
+  eq C |= propRepeatedQuery = hasRepeatedQuery(C) .
+
+  --- Rewrite loop: The query is rewritten to itself.
+  ---   Checks the nsQueryLog for a repeated occurrence of a QNAME with the ids indicating rewriting.
+  op propRewriteLoop : -> Prop .
+  eq C |= propRewriteLoop = hasRewriteLoop(C) .
+
+  --- Lame delegation: A name server is asked that is neither authoritative nor can provide a (downward) referral.
+  ---   This is detected by the presence of a response with the REFUSED RCODE.
+  op propLameDelegation : -> Prop .
+  eq C |= propLameDelegation = hasLameDelegation(C) .
+
+  --- Rewrite blackhole: The query is rewritten to a name that does not exist.
+  ---   This is detected by the presence of a response with the NXDOMAIN RCODE and a non-empty answer section.
+  op propRewriteBlackhole : -> Prop .
+  eq C |= propRewriteBlackhole = hasRewriteBlackhole(C) .
+
+  --- Zero TTL: Resolution of the query involves zero-TTL records.
+  ---   This is the case if any name server response contains records with zero TTL.
+  op propZeroTTL : -> Prop .
+  eq C |= propZeroTTL = hasZeroTTL(C) .
+
+  --- NXDOMAIN: The query is answered with NXDOMAIN.
+  ---   This is detected by the presence of an NXDOMAIN response in the client response log.
+  op propNxdomain : -> Prop .
+  eq C |= propNxdomain = hasNxdomain(C) .
+
+  --- YXDOMAIN: The query produces a name that exceeds the maximum domain length.
+  ---   This is detected by the presence of an YXDOMAIN response in the nameserver response log.
+  ---   Note that this does not detect overflowing names produced by in-cache DNAME substitution at the resolver.
+  ---   For this, the property below should be used, which also detects in-cache overflows.
+  op propYxdomain : -> Prop .
+  eq C |= propYxdomain = hasYxdomain(C) .
+
+  --- Domain Overflow: The query produces a name that exceeds the maximum domain length.
+  op propOverflow : -> Prop .
+  eq C |= propOverflow = hasOverflow(C) .
+
+  --- Glueless delegation: Resolution of the query involves a delegation without glue.
+  op propGluelessDelegation : -> Prop .
+  eq C |= propGluelessDelegation = hasGluelessDelegation(C) .
+
+  --- Delegation inconsistency: Resolution of the query encounters differing NS or address records in a delegation response
+  ---   and an authoritative answer.
+  op propDelegationInconsistency : -> Prop .
+  eq C |= propDelegationInconsistency = hasDelegationInconsistency(C) .
+
+  --- Circular Nameserver Dependency:
+  ---   Resolution of the query encounters a "non-trivial" circular dependency, i.e., one that does not fall into
+  ---   the category explicitly mentioned in RFC 1035, §7.2.
+  op propCircularDependency : -> Prop .
+  eq C |= propCircularDependency = hasCircularDependency(C) .
+
+  --- Inconsistent Zone Configuration:
+  ---   The static zone files in the initial configuration contain inconsistent RRsets (i.e., diffeerent nameservers have
+  ---   different RRsets for the same name and type).
+  op propInconsistentRRsets : -> Prop .
+  eq C |= propInconsistentRRsets = hasInconsistentRRsets(C) .
+
+endm

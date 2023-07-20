@@ -1,0 +1,104 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load ../../src/probabilistic-model/properties
+
+--- This is a simple example with a CNAME loop.
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + PROPERTIES .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'alias . 'domainA . 'net . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNSnet addrNSa addrNSb : -> Address .
+
+  ops zoneRoot zoneNet zoneDomainA zoneDomainB : -> List{Record} .
+  eq zoneRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+
+    < 'net . root, ns, testTTL, 'ns . 'net . root >
+    < 'ns . 'net . root, a, testTTL, addrNSnet > . --- glue
+
+  eq zoneNet =
+    --- authoritative data
+    < 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'net . root, ns, testTTL, 'ns . 'net . 'root >
+    < 'ns . 'net . root, a, testTTL, addrNSnet >
+
+    --- non-authoritative data
+    < 'domainA . 'net . root, ns, testTTL, 'ns . 'domainA . 'net . root >
+    < 'ns . 'domainA . 'net . root, a, testTTL, addrNSa > --- glue
+
+    < 'domainB . 'net . root, ns, testTTL, 'ns . 'domainB . 'net . root >
+    < 'ns . 'domainB . 'net . root, a, testTTL, addrNSb > . --- glue
+
+  eq zoneDomainA =
+    --- authoritative data
+    < 'domainA . 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'domainA . 'net . root, ns, testTTL, 'ns . 'domainA . 'net . root >
+    < 'ns . 'domainA . 'net . root, a, testTTL, addrNSa >
+    < 'alias . 'domainA . 'net . root, cname, testTTL, 'alias . 'domainB . 'net . root > .
+
+  eq zoneDomainB =
+    --- authoritative data
+    < 'domainB . 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'domainB . 'net . root, ns, testTTL, 'ns . 'domainB . 'net . root >
+    < 'ns . 'domainB . 'net . root, a, testTTL, addrNSb >
+    < 'alias . 'domainB . 'net . root, cname, testTTL, 'alias . 'domainA . 'net . root > .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: nilCache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: zoneRoot, queue: nilQueue >
+    --- .net authoritative name server
+    < addrNSnet : Nameserver | db: zoneNet, queue: nilQueue >
+    --- SLD name servers
+    < addrNSa : Nameserver | db: zoneDomainA, queue: nilQueue >
+    < addrNSb : Nameserver | db: zoneDomainB, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .

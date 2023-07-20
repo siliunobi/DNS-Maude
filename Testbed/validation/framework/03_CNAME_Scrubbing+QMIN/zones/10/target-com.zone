@@ -1,0 +1,19 @@
+$TTL 3600
+@                       IN      SOA     server.target.com. username.target.com. (2006032201 7200 3600 1209600 3600)
+                        IN      NS      ns.target.com.
+                        IN      A       1.2.3.4
+ns.target.com.         IN      A       172.20.0.5
+
+
+; CNAME chain with many labels in each name
+
+12.11.10.9.8.7.6.5.4.3.2.CH1.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH2.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH2.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH3.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH3.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH4.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH4.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH5.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH5.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH6.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH6.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH7.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH7.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH8.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH8.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH9.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH9.target.com.     IN      CNAME   12.11.10.9.8.7.6.5.4.3.2.CH10.target.com.
+12.11.10.9.8.7.6.5.4.3.2.CH10.target.com.     IN    A   1.2.3.4

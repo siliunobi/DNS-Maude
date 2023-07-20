@@ -1,0 +1,54 @@
+load ../common/parameters
+load sampler
+load apmaude
+
+mod PARAMETERS is
+  inc PARAMETERS-COMMON + SAMPLER + APMAUDE .
+  
+  --- logical runtime limit for each simulation
+  eq limit = 100000000.0 .
+  --- eq limit = 1000.0 .
+  
+  --- delays must be sampled from a continuous probability distribution 
+  op delay : -> Float .  --- message delay
+  eq delay = sampleLogNormal(0.0, 1.0) .
+  
+  op id : -> Float . --- initial delay
+  eq id = sampleExp(1.0) .
+  
+  op drop? : -> Nat .  --- 1 denotes "dropped msg"; owise, 0
+  eq drop? = 0 .
+
+  --- Resolver timeouts
+  op rsvTimeout? : -> Bool .
+  eq rsvTimeout? = false [owise] .
+
+  op rsvTimeout : -> Float .
+  eq rsvTimeout = 20.0 [owise] .
+
+  op rsvOverallTimeout? : -> Bool .
+  eq rsvOverallTimeout? = false [owise] .
+
+  op rsvOverallTimeout : -> Float .
+  eq rsvOverallTimeout = 1000.0 [owise] .
+
+  op dropMsgsForNXActors? : -> Bool . --- whether messages addressed to non-existent actors should be dropped silently
+  eq dropMsgsForNXActors? = false [owise] .
+
+  --- Name server resource bounds:
+
+  --- Enable resource bounds (see below)
+  op nsResourceBounds? : -> Bool .
+  eq nsResourceBounds? = false [owise] .
+
+  op nsReqProcDelay : -> Float . --- request processing delay
+  eq nsReqProcDelay = sampleExp(1.0) [owise] . --- sampleExp(k) --> on average, k requests are processed per time unit
+
+  op nsQueueSize : -> Nat . --- size of request queue; if queue is full, incoming requests are dropped
+  eq nsQueueSize = 10 [owise] .
+
+  --- Attacker configuration
+  op atkrInitDelay : -> Float .
+  eq atkrInitDelay = sampleExp(1.0) . --- delay for attacker client start signal
+
+endm

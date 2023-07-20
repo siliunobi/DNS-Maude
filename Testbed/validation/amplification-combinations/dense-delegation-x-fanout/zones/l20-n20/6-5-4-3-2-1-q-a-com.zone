@@ -1,0 +1,47 @@
+$TTL 3600
+@                       IN      SOA     server.6.5.4.3.2.1.q.a.com. username.6.5.4.3.2.1.q.a.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.6.5.4.3.2.1.q.a.com.
+ns.6.5.4.3.2.1.q.a.com.       IN      A       172.20.0.12
+
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n1.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n2.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n3.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n4.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n5.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n6.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n7.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n8.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n9.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n10.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n11.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n12.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n13.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n14.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n15.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n16.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n17.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n18.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n19.b.com.
+
+7.6.5.4.3.2.1.q.a.com.    IN  NS  n8n20.b.com.
+
+

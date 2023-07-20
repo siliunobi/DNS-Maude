@@ -1,0 +1,25 @@
+resolver,zone,delay,result,query
+resolver-bind-9.18.4,target-com.zone,0,58,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,200,3330,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,400,6734,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,600,9831,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,800,12891,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,1000,16095,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,1200,19464,a1.target.com A
+resolver-bind-9.18.4,target-com.zone,1400,22561,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,0,22,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,200,2271,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,400,4647,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,600,7586,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,800,10173,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,1000,11061,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,1200,13260,a1.target.com A
+resolver-unbound-1.16.0,target-com.zone,1400,15513,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,0,183,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,200,2272,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,400,4464,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,600,6666,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,800,6436,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,1000,6031,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,1200,6035,a1.target.com A
+resolver-powerdns-4.7,target-com.zone,1400,5624,a1.target.com A

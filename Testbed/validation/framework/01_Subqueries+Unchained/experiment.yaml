@@ -1,0 +1,8 @@
+name: "Subquery Unchained"
+target: "target-com"
+measure: "volume"
+queries:
+  - zone: "R0CH0.inter.net."
+    record: "A"
+qmin: false
+testbed: validation/framework/testbed-framework.yaml

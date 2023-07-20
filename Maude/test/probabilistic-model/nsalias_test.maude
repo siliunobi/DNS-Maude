@@ -1,0 +1,151 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load test_helpers
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + TEST-HELPERS .
+
+  var Q : Query .
+  var CACHE : Cache .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'www . 'aaa . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  op sb : -> ZoneState . --- "SBELT": fallback if no known name servers
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrNSroot) > .
+
+  ops addrNSroot addrNScom addrNSnet addrNSorg addrNScccOrg addrNSdddNet addrNSbbbdddNet : -> Address .
+  eq addrNSroot = 198 . 41 . 0 . 4 .
+  eq addrNScom = 192 . 5 . 6 . 30 .
+  eq addrNSnet = 192 . 33 . 14 . 30 .
+  eq addrNSorg = 192 . 26 . 92 . 30 .
+  eq addrNScccOrg = 1 . 1 . 1 . 1 .
+  eq addrNSdddNet = 2 . 2 . 2 . 2 .
+  eq addrNSbbbdddNet = 3 . 3 . 3 . 3 .
+
+  ops dbRoot dbCom dbNet dbOrg dbCccOrg dbBbbNet dbDddNet dbAaaCom : -> List{Record} .
+
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+
+    --- non-authoritative data
+    < 'com . root, ns, testTTL, 'ns . 'com . root > --- has glue
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    < 'net . root, ns, testTTL, 'ns . 'net . root > --- has glue
+    < 'ns . 'net . root, a, testTTL, addrNSnet >
+
+    < 'org . root, ns, testTTL, 'ns . 'org . root > --- has glue
+    < 'ns . 'org . root, a, testTTL, addrNSorg > .
+
+  eq dbCom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+
+    --- non-authoritative data
+    < 'aaa . 'com . root, ns, testTTL, 'ns . 'bbb . 'net . root > . --- no glue
+
+  eq dbNet =
+    --- authoritative data
+    < 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'net . root, ns, testTTL, 'ns . 'net . root >
+
+    --- non-authoritative data
+    < 'bbb . 'net . root, ns, testTTL, 'ns . 'ccc . 'org . root > --- no glue
+    < 'ddd . 'net . root, ns, testTTL, 'ns . 'ddd . 'net . root > --- has glue
+    < 'ns . 'ddd . 'net . root, a, testTTL, addrNSdddNet > .
+
+  eq dbOrg =
+    --- authoritative data
+    < 'org . root, soa, testTTL, soaData(testTTL) >
+    < 'org . root, ns, testTTL, 'ns . 'org . root >
+
+    --- non-authoritative data
+    < 'ccc . 'org . root, ns, testTTL, 'ns . 'ccc . 'org . root > --- has glue
+    < 'ns . 'ccc . 'org . root, a, testTTL, addrNScccOrg > .
+
+  eq dbCccOrg =
+    < 'ccc . 'org . root, soa, testTTL, soaData(testTTL) >
+    < 'ccc . 'org . root, ns, testTTL, 'ns . 'ccc . 'org . root >
+    < 'ns . 'ccc . 'org . root, a, testTTL, addrNScccOrg > .
+
+  eq dbBbbNet =
+    --- authoritative data
+    < 'bbb . 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'bbb . 'net . root, ns, testTTL, 'ns . 'ccc . 'org . root >
+
+    < 'ns . 'bbb . 'net . root, cname, testTTL, 'ns-bbb . 'ddd . 'net . root > .
+
+  eq dbDddNet =
+    < 'ddd . 'net . root, soa, testTTL, soaData(testTTL) >
+    < 'ddd . 'net . root, ns, testTTL, 'ns . 'ddd . 'net . root >
+
+    < 'ns-bbb . 'ddd . 'net . root, a, testTTL, addrNSbbbdddNet > .
+
+  eq dbAaaCom =
+    < 'aaa . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'aaa . 'com . root, ns, testTTL, 'ns-bbb . 'ddd . 'net . root >
+
+    < 'www . 'aaa . 'com . root, a, testTTL, 4 . 4 . 4 . 4 > .
+
+  op initConfig : Query Cache -> Config .
+  eq initConfig(Q, CACHE) = run(initStateForQuery(Q, CACHE), limit) .
+
+  op initStateForQuery : Query Cache -> Config .
+  eq initStateForQuery(Q, CACHE) = { 0.0 | nil }
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: Q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: CACHE,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Name servers
+    < addrNSroot : Nameserver | db: dbRoot, queue: nilQueue >
+    < addrNScom : Nameserver | db: dbCom, queue: nilQueue >
+    < addrNSnet : Nameserver | db: dbNet, queue: nilQueue >
+    < addrNSorg : Nameserver | db: dbOrg, queue: nilQueue >
+    < addrNScccOrg : Nameserver | db: (dbBbbNet dbCccOrg), queue: nilQueue >
+    < addrNSdddNet : Nameserver | db: dbDddNet, queue: nilQueue >
+    < addrNSbbbdddNet : Nameserver | db: dbAaaCom, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+set clear rules off .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+--- rew initConfig(query(1, 'www . 'aaa . 'com . root, a), nilCache) .
+
+rew reachedTerminalConfigWithResponseLog(
+    initConfig(q, nilCache),
+    tupleAddrResp(cAddr,
+      response(1, 'www . 'aaa . 'com . root,
+        < 'www . 'aaa . 'com . root, a, testTTL, 4 . 4 . 4 . 4 >, nil, nil, 0)
+    )
+  ) .

@@ -1,0 +1,51 @@
+FROM ubuntu:kinetic
+
+RUN apt-get update \
+  && apt-get install -y \
+  vim \
+    iproute2\
+    locate  \
+    gnupg \
+    tar \
+    wget \
+    dnscap
+
+#RUN add-apt-repository universe
+RUN apt-get install -y \
+    build-essential \
+    libtool  \
+    autoconf  \
+    automake  \
+    libssl-dev
+
+
+
+RUN apt-get install -y \
+    libuv1-dev \
+    libnghttp2-dev \
+    libcap-dev \
+    libprotobuf-c-dev libprotobuf-c1 \
+    protobuf-c-compiler \
+    fstrm-bin libfstrm0 libfstrm-dev \
+    libprotobuf-c-dev libprotobuf-c1
+
+ARG VERSION
+RUN wget https://ftp.isc.org/isc/bind9/$VERSION/bind-$VERSION.tar.xz
+RUN tar xf bind-$VERSION.tar.xz
+WORKDIR bind-$VERSION
+RUN ./configure --enable-dnstap --sysconfdir=/etc/bind --without-python
+RUN make
+RUN make install
+RUN ldconfig
+
+RUN apt-get --purge -y autoremove policykit-1
+
+RUN adduser bind
+RUN mkdir -p /etc/bind && chown root:bind /etc/bind/ && chmod 755 /etc/bind
+RUN mkdir -p /var/cache/bind && chown bind:bind /var/cache/bind && chmod 755 /var/cache/bind
+RUN mkdir -p /var/lib/bind && chown bind:bind /var/lib/bind && chmod 755 /var/lib/bind
+RUN mkdir -p /var/log/bind && chown bind:bind /var/log/bind && chmod 755 /var/log/bind
+RUN mkdir -p /run/named && chown bind:bind /run/named && chmod 755 /run/named
+RUN rndc-confgen -a
+
+CMD ["/bin/bash", "-c", "while :; do sleep 10; done"]

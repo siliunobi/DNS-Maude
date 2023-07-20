@@ -1,0 +1,262 @@
+$TTL 3600
+@                       IN      SOA     server.b.com. username.b.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.b.com.
+ns.b.com.               IN      A       172.20.0.5
+
+
+
+    
+n1n1.b.com.   IN  NS  n1n2.b.com.
+    
+n1n2.b.com.   IN  NS  n1n3.b.com.
+    
+n1n3.b.com.   IN  NS  n1n4.b.com.
+    
+n1n4.b.com.   IN  NS  n1n5.b.com.
+    
+n1n5.b.com.   IN  NS  n1n6.b.com.
+    
+n1n6.b.com.   IN  NS  n1n7.b.com.
+    
+n1n7.b.com.         IN  A   172.20.0.6
+
+    
+n2n1.b.com.   IN  NS  n2n2.b.com.
+    
+n2n2.b.com.   IN  NS  n2n3.b.com.
+    
+n2n3.b.com.   IN  NS  n2n4.b.com.
+    
+n2n4.b.com.   IN  NS  n2n5.b.com.
+    
+n2n5.b.com.   IN  NS  n2n6.b.com.
+    
+n2n6.b.com.   IN  NS  n2n7.b.com.
+    
+n2n7.b.com.         IN  A   172.20.0.6
+
+    
+n3n1.b.com.   IN  NS  n3n2.b.com.
+    
+n3n2.b.com.   IN  NS  n3n3.b.com.
+    
+n3n3.b.com.   IN  NS  n3n4.b.com.
+    
+n3n4.b.com.   IN  NS  n3n5.b.com.
+    
+n3n5.b.com.   IN  NS  n3n6.b.com.
+    
+n3n6.b.com.   IN  NS  n3n7.b.com.
+    
+n3n7.b.com.         IN  A   172.20.0.6
+
+    
+n4n1.b.com.   IN  NS  n4n2.b.com.
+    
+n4n2.b.com.   IN  NS  n4n3.b.com.
+    
+n4n3.b.com.   IN  NS  n4n4.b.com.
+    
+n4n4.b.com.   IN  NS  n4n5.b.com.
+    
+n4n5.b.com.   IN  NS  n4n6.b.com.
+    
+n4n6.b.com.   IN  NS  n4n7.b.com.
+    
+n4n7.b.com.         IN  A   172.20.0.6
+
+    
+n5n1.b.com.   IN  NS  n5n2.b.com.
+    
+n5n2.b.com.   IN  NS  n5n3.b.com.
+    
+n5n3.b.com.   IN  NS  n5n4.b.com.
+    
+n5n4.b.com.   IN  NS  n5n5.b.com.
+    
+n5n5.b.com.   IN  NS  n5n6.b.com.
+    
+n5n6.b.com.   IN  NS  n5n7.b.com.
+    
+n5n7.b.com.         IN  A   172.20.0.6
+
+    
+n6n1.b.com.   IN  NS  n6n2.b.com.
+    
+n6n2.b.com.   IN  NS  n6n3.b.com.
+    
+n6n3.b.com.   IN  NS  n6n4.b.com.
+    
+n6n4.b.com.   IN  NS  n6n5.b.com.
+    
+n6n5.b.com.   IN  NS  n6n6.b.com.
+    
+n6n6.b.com.   IN  NS  n6n7.b.com.
+    
+n6n7.b.com.         IN  A   172.20.0.6
+
+    
+n7n1.b.com.   IN  NS  n7n2.b.com.
+    
+n7n2.b.com.   IN  NS  n7n3.b.com.
+    
+n7n3.b.com.   IN  NS  n7n4.b.com.
+    
+n7n4.b.com.   IN  NS  n7n5.b.com.
+    
+n7n5.b.com.   IN  NS  n7n6.b.com.
+    
+n7n6.b.com.   IN  NS  n7n7.b.com.
+    
+n7n7.b.com.         IN  A   172.20.0.6
+
+    
+n8n1.b.com.   IN  NS  n8n2.b.com.
+    
+n8n2.b.com.   IN  NS  n8n3.b.com.
+    
+n8n3.b.com.   IN  NS  n8n4.b.com.
+    
+n8n4.b.com.   IN  NS  n8n5.b.com.
+    
+n8n5.b.com.   IN  NS  n8n6.b.com.
+    
+n8n6.b.com.   IN  NS  n8n7.b.com.
+    
+n8n7.b.com.         IN  A   172.20.0.6
+
+    
+n9n1.b.com.   IN  NS  n9n2.b.com.
+    
+n9n2.b.com.   IN  NS  n9n3.b.com.
+    
+n9n3.b.com.   IN  NS  n9n4.b.com.
+    
+n9n4.b.com.   IN  NS  n9n5.b.com.
+    
+n9n5.b.com.   IN  NS  n9n6.b.com.
+    
+n9n6.b.com.   IN  NS  n9n7.b.com.
+    
+n9n7.b.com.         IN  A   172.20.0.6
+
+    
+n10n1.b.com.   IN  NS  n10n2.b.com.
+    
+n10n2.b.com.   IN  NS  n10n3.b.com.
+    
+n10n3.b.com.   IN  NS  n10n4.b.com.
+    
+n10n4.b.com.   IN  NS  n10n5.b.com.
+    
+n10n5.b.com.   IN  NS  n10n6.b.com.
+    
+n10n6.b.com.   IN  NS  n10n7.b.com.
+    
+n10n7.b.com.         IN  A   172.20.0.6
+
+    
+n11n1.b.com.   IN  NS  n11n2.b.com.
+    
+n11n2.b.com.   IN  NS  n11n3.b.com.
+    
+n11n3.b.com.   IN  NS  n11n4.b.com.
+    
+n11n4.b.com.   IN  NS  n11n5.b.com.
+    
+n11n5.b.com.   IN  NS  n11n6.b.com.
+    
+n11n6.b.com.   IN  NS  n11n7.b.com.
+    
+n11n7.b.com.         IN  A   172.20.0.6
+
+    
+n12n1.b.com.   IN  NS  n12n2.b.com.
+    
+n12n2.b.com.   IN  NS  n12n3.b.com.
+    
+n12n3.b.com.   IN  NS  n12n4.b.com.
+    
+n12n4.b.com.   IN  NS  n12n5.b.com.
+    
+n12n5.b.com.   IN  NS  n12n6.b.com.
+    
+n12n6.b.com.   IN  NS  n12n7.b.com.
+    
+n12n7.b.com.         IN  A   172.20.0.6
+
+    
+n13n1.b.com.   IN  NS  n13n2.b.com.
+    
+n13n2.b.com.   IN  NS  n13n3.b.com.
+    
+n13n3.b.com.   IN  NS  n13n4.b.com.
+    
+n13n4.b.com.   IN  NS  n13n5.b.com.
+    
+n13n5.b.com.   IN  NS  n13n6.b.com.
+    
+n13n6.b.com.   IN  NS  n13n7.b.com.
+    
+n13n7.b.com.         IN  A   172.20.0.6
+
+    
+n14n1.b.com.   IN  NS  n14n2.b.com.
+    
+n14n2.b.com.   IN  NS  n14n3.b.com.
+    
+n14n3.b.com.   IN  NS  n14n4.b.com.
+    
+n14n4.b.com.   IN  NS  n14n5.b.com.
+    
+n14n5.b.com.   IN  NS  n14n6.b.com.
+    
+n14n6.b.com.   IN  NS  n14n7.b.com.
+    
+n14n7.b.com.         IN  A   172.20.0.6
+
+    
+n15n1.b.com.   IN  NS  n15n2.b.com.
+    
+n15n2.b.com.   IN  NS  n15n3.b.com.
+    
+n15n3.b.com.   IN  NS  n15n4.b.com.
+    
+n15n4.b.com.   IN  NS  n15n5.b.com.
+    
+n15n5.b.com.   IN  NS  n15n6.b.com.
+    
+n15n6.b.com.   IN  NS  n15n7.b.com.
+    
+n15n7.b.com.         IN  A   172.20.0.6
+
+    
+n16n1.b.com.   IN  NS  n16n2.b.com.
+    
+n16n2.b.com.   IN  NS  n16n3.b.com.
+    
+n16n3.b.com.   IN  NS  n16n4.b.com.
+    
+n16n4.b.com.   IN  NS  n16n5.b.com.
+    
+n16n5.b.com.   IN  NS  n16n6.b.com.
+    
+n16n6.b.com.   IN  NS  n16n7.b.com.
+    
+n16n7.b.com.         IN  A   172.20.0.6
+
+    
+n17n1.b.com.   IN  NS  n17n2.b.com.
+    
+n17n2.b.com.   IN  NS  n17n3.b.com.
+    
+n17n3.b.com.   IN  NS  n17n4.b.com.
+    
+n17n4.b.com.   IN  NS  n17n5.b.com.
+    
+n17n5.b.com.   IN  NS  n17n6.b.com.
+    
+n17n6.b.com.   IN  NS  n17n7.b.com.
+    
+n17n7.b.com.         IN  A   172.20.0.6
+

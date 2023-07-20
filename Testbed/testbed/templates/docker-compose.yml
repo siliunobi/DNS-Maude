@@ -1,0 +1,97 @@
+version: "3.9"
+services:
+{{range $nameserver := .Nameservers}}
+  {{$nameserver.ID}}:
+    container_name: {{$nameserver.ID}}
+    build:
+      dockerfile: dockerfiles/Dockerfile_{{$nameserver.Implementation.Name}}
+      args:
+        VERSION: {{$nameserver.Implementation.Version}}
+    volumes:
+      - type: bind
+        source: db.root
+        target: {{$nameserver.Implementation.RootHintsTarget}}
+      - type: bind
+        source: {{$nameserver.ID}}/config/
+        target: {{$nameserver.Implementation.ConfigTarget}}
+      - type: bind
+        source: zones
+        target: /zones
+      - type: bind
+        source: {{$nameserver.ID}}/logs
+        target: {{$nameserver.Implementation.LogsTarget}}
+    networks:
+      dns-testbed:
+        ipv4_address: {{$nameserver.IP}}
+    cap_add:
+      - NET_ADMIN
+    command:
+      - /bin/sh
+      - -c
+      - |
+      {{range $cmd := $nameserver.Implementation.StartCommands}}
+        {{$cmd}}
+      {{end}}
+        tc qdisc add dev eth0 root netem delay 0ms
+        {{$nameserver.Implementation.StartDNSCap}}
+        tail -F anything
+{{end}}
+  
+{{range $resolver := .Resolvers}}
+  {{$resolver.ID}}:
+    container_name: {{$resolver.ID}}
+    build:
+      dockerfile: dockerfiles/Dockerfile_{{$resolver.Implementation.Name}}
+      args:
+        VERSION: {{$resolver.Implementation.Version}}
+    volumes:
+      - type: bind
+        source: {{$resolver.ID}}/config
+        target: {{$resolver.Implementation.ConfigTarget}}
+      - type: bind
+        source: db.root
+        target: {{$resolver.Implementation.RootHintsTarget}}
+      - type: bind
+        source: {{$resolver.ID}}/logs
+        target: {{$resolver.Implementation.LogsTarget}}
+    networks:
+      dns-testbed:
+        ipv4_address: {{$resolver.IP}}
+    command:
+      - /bin/sh
+      - -c
+      - |
+      {{range $cmd := $resolver.Implementation.StartCommands}}
+        {{$cmd}}
+      {{end}}
+        {{$resolver.Implementation.StartDNSCap}}
+        tail -F anything
+{{end}}
+
+  {{.Client.ID}}:
+    container_name: {{.Client.ID}}
+    build:
+      dockerfile: dockerfiles/Dockerfile_client
+    volumes:
+      - type: bind
+        source: {{.Client.ID}}/resolv.conf
+        target: /etc/resolv.conf
+      - type: bind
+        source: {{.Client.ID}}/logs
+        target: /etc/logs
+    networks:
+      dns-testbed:
+        ipv4_address: {{.Client.IP}}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        dnscap -g 2> /etc/logs/trace.txt
+        tail -F anything
+networks:
+  dns-testbed:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

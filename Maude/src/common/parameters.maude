@@ -1,0 +1,100 @@
+load prelim
+
+mod PARAMETERS-COMMON is
+  pr NAT .
+  pr FLOAT .
+  inc SORTS .
+
+  --- Used internally to signal a cache miss in the responseFromCache function.
+  op cacheMissRcode : -> Nat .
+  eq cacheMissRcode = 4000 .
+
+  --- Model checking parameters
+  op maxSymbolicLabels : -> Nat .
+  eq maxSymbolicLabels = 10 [owise] .
+
+  --- Monitor configuration
+
+  --- Keep track of messages sent/received _per original client query_
+  op monitorDetailedMsgStats? : -> Bool .
+  eq monitorDetailedMsgStats? = false [owise] .
+
+  --- Keep track of the queries received by name servers.
+  op monitorQueryLog? : -> Bool .
+  eq monitorQueryLog? = true [owise] .
+
+  --- Keep track of the rewrites at the resolver, i.e., the SNAMEs and the CNAME/DNAME records that led there.
+  op monitorRewriteLog? : -> Bool .
+  eq monitorRewriteLog? = true [owise] .
+
+  op monitorSlistArgsLog? : -> Bool .
+  eq monitorSlistArgsLog? = false [owise] .
+
+  --- Resolver configuration
+
+  --- Enable/disable caching at the resolver.
+  --- If caching is disabled, the resolver does not insert new records into the cache, but the cache from the initial
+  --- configuration is still taken into account.
+  op rsvCaching? : -> Bool .
+  eq rsvCaching? = true [owise] .
+
+  --- The minimum credibility score that a cached record must have in order to be eligible to answer a client or resolver
+  --- query, respectively.
+  --- For the different credibility scores, see RFC 2181, §5.4.1. The lowest credibility score is 1, the highest 7.
+  ops rsvMinCacheCredClient rsvMinCacheCredResolver : -> Nat .
+  eq rsvMinCacheCredClient = 2 [owise] .
+  eq rsvMinCacheCredResolver = 2 [owise] .
+
+  --- Whether the resolver enforces min and max TTL values when inserting records into cache.
+  op boundTTL? : -> Bool .
+  eq boundTTL? = false [owise] .
+
+  ops minTTL maxTTL : -> Float .
+  eq minTTL = 0.0 [owise] .
+  eq maxTTL = 100000000.0 [owise] .
+
+  --- Same for negative caches
+  ops boundNxdomainTTL? boundNodataTTL? : -> Bool .
+  eq boundNxdomainTTL? = false [owise] .
+  eq boundNodataTTL? = false [owise] .
+
+  ops minNxdomainTTL maxNxdomainTTL : -> Float .
+  eq minNxdomainTTL = 0.0 [owise] .
+  eq maxNxdomainTTL = 100000000.0 [owise] .
+
+  ops minNodataTTL maxNodataTTL : -> Float .
+  eq minNodataTTL = 0.0 [owise] .
+  eq maxNodataTTL = 100000000.0 [owise] .
+
+  --- QNAME minimization: config parameters from RFC 9156, initialized with the recommended values.
+  --- Note: Setting maxMinimiseCount=0 turns off QNAME minimization.
+  ops maxMinimiseCount minimiseOneLab : -> Nat .
+  eq maxMinimiseCount = 10 [owise] .
+  eq minimiseOneLab = 4 [owise] .
+
+  --- The record type to use for minimized queries
+  op qminQTYPE : -> RType .
+  eq qminQTYPE = mx [owise] .
+
+  --- Configuration of RFC ambiguities
+
+  --- Work budget: maximum number of queries sent by a recursive resolver for a single client query.
+  --- If this number is exceeded, the resolver sends a SERVFAIL response to the client.
+  op configWorkBudget : -> Nat .
+  eq configWorkBudget = 75 [owise] .
+
+  --- TsuNAME-like behavior when faced with circular dependencies:
+  --- When enabled, the resolver falls back to the parent zone when a "non-trivial" circular dependency is detected,
+  --- rather than falling back to SBELT. This leads to TsuNAME-like behavior where the parent zone is queried
+  --- repeatedly until the work budget is exceeded.
+  op configTsuNAMEslistCircDep : -> Bool .
+  eq configTsuNAMEslistCircDep = false [owise] .
+
+  --- MaxFetch(k) countermeasure from NXNS paper
+  op maxFetch? : -> Bool .
+  eq maxFetch? = false [owise] .
+
+  op maxFetchParam : -> Nat .
+  eq maxFetchParam = 1 [owise] .
+
+endm

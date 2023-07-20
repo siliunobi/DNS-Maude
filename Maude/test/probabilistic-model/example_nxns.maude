@@ -1,0 +1,152 @@
+load ../../src/probabilistic-model/dns
+load ../../src/probabilistic-model/sampler
+load test_helpers
+
+--- This is the example is from the NXNS paper, Fig. 2
+
+mod TEST is
+  inc SAMPLER + APMAUDE + DNS + TEST-HELPERS .
+
+  op testTTL : -> Float .
+  eq testTTL = 3600.0 . --- Note that this is in time units, not seconds
+
+  op q : -> Query .
+  eq q = query(1, 'www . 'microsoft . 'com . root, a) .
+
+  ops mAddr cAddr rAddr : -> Address .
+
+  --- "SBELT": fallback if there are no known name servers
+  op sb : -> ZoneState .
+  eq sb = < root ('a . 'root-servers . 'net . root |-> addrRoot) > .
+
+  ops addrRoot addrNScom addrNSnet addrNS1 addrNS2 addrNS3 addrNS4 addrTarget : -> Address .
+  eq addrNScom = 2 . 2 . 2 . 2 .
+  eq addrNSnet = 3 . 3 . 3 . 3 .
+  eq addrNS1 = 208 . 84 . 5 . 53 .
+  eq addrNS2 = 208 . 84 . 2 . 53 .
+  eq addrNS3 = 193 . 221 . 113 . 53 .
+  eq addrNS4 = 208 . 76 . 45 . 53 .
+  eq addrTarget = 13 . 77 . 161 . 179 .
+
+  --- The cache contains the name servers for the com and net domains (and their addresses)
+  op rsvCache : -> Cache .
+  eq rsvCache =
+    cacheEntry(< 'com . root, ns, testTTL, 'ns . 'com . root >, 1)
+    cacheEntry(< 'net . root, ns, testTTL, 'ns . 'net . root >, 1)
+    cacheEntry(< 'ns . 'com . root, a, testTTL, addrNScom >, 1)
+    cacheEntry(< 'ns . 'net . root, a, testTTL, addrNSnet >, 1) .
+
+  ops dbRoot dbNScom dbNSnet dbNSauth : -> List{Record} .
+  eq dbRoot =
+    --- authoritative data
+    < root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < root, ns, testTTL, 'a . 'root-servers . 'net . root >
+    < 'a . 'root-servers . 'net . root, a, testTTL, addrRoot >
+
+    --- non-authoritative data
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'net . root, ns, testTTL, 'ns . 'net . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >   --- glue
+    < 'ns . 'net . root, a, testTTL, addrNSnet > . --- glue
+
+  eq dbNScom =
+    --- authoritative data
+    < 'com . root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < 'com . root, ns, testTTL, 'ns . 'com . root >
+    < 'ns . 'com . root, a, testTTL, addrNScom >
+
+    --- non-authoritative data
+    < 'microsoft . 'com . root, ns, testTTL, 'ns1 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns2 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns3 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns4 . 'msft . 'net . root > . --- no glue allowed because out-of-bailiwick
+
+  eq dbNSnet =
+    --- authoritative data
+    < 'net . root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < 'net . root, ns, testTTL, 'ns . 'net . root >
+    < 'ns . 'net . root, a, testTTL, addrNSnet >
+
+    --- non-authoritative data
+    < 'msft . 'net . root, ns, testTTL, 'ns1 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns2 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns3 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns4 . 'msft . 'net . root >
+    < 'ns1 . 'msft . 'net . root, a, testTTL, addrNS1 >   --- glue
+    < 'ns2 . 'msft . 'net . root, a, testTTL, addrNS2 >   --- glue
+    < 'ns3 . 'msft . 'net . root, a, testTTL, addrNS3 >   --- glue
+    < 'ns4 . 'msft . 'net . root, a, testTTL, addrNS4 > . --- glue
+
+  eq dbNSauth =
+    --- authoritative data for msft.net zone
+    < 'msft . 'net . root, soa, testTTL, soaData(testTTL) > --- dummy value
+    < 'msft . 'net . root, ns, testTTL, 'ns1 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns2 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns3 . 'msft . 'net . root >
+    < 'msft . 'net . root, ns, testTTL, 'ns4 . 'msft . 'net . root >
+    < 'ns1 . 'msft . 'net . root, a, testTTL, addrNS1 >
+    < 'ns2 . 'msft . 'net . root, a, testTTL, addrNS2 >
+    < 'ns3 . 'msft . 'net . root, a, testTTL, addrNS3 >
+    < 'ns4 . 'msft . 'net . root, a, testTTL, addrNS4 >
+
+    --- authoritative data for microsoft.com zone
+    < 'microsoft . 'com . root, soa, testTTL, soaData(testTTL) >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns1 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns2 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns3 . 'msft . 'net . root >
+    < 'microsoft . 'com . root, ns, testTTL, 'ns4 . 'msft . 'net . root >
+    < 'www . 'microsoft . 'com . root, a, testTTL, addrTarget > .
+
+  op initConfig : -> Config .
+  eq initConfig = run(initState, limit) .
+
+  eq initState = { 0.0 | nil } 
+    --- Preliminaries
+    initMonitor(mAddr)
+    [id, to cAddr : start, 0]
+
+    < cAddr : Client | queries: q, resolver: rAddr, notifyDone: nullAddr >
+    < rAddr : Resolver | cache: rsvCache,
+                         nxdomainCache: nilNxdomainCache,
+                         nodataCache: nilNodataCache,
+                         sbelt: sb,
+                         workBudget: emptyIN,
+                         blockedQueries: eptQSS,
+                         sentQueries: eptQSS >
+
+    --- Root name server
+    < addrRoot : Nameserver | db: dbRoot, queue: nilQueue >
+    --- TLD name servers
+    < addrNScom : Nameserver | db: dbNScom, queue: nilQueue >
+    < addrNSnet : Nameserver | db: dbNSnet, queue: nilQueue >
+    --- SLD name servers
+    < addrNS1 : Nameserver | db: dbNSauth, queue: nilQueue >
+    < addrNS2 : Nameserver | db: dbNSauth, queue: nilQueue >
+    < addrNS3 : Nameserver | db: dbNSauth, queue: nilQueue >
+    < addrNS4 : Nameserver | db: dbNSauth, queue: nilQueue > .
+
+endm
+
+--- uncomment for debugging purposes
+--- set trace on .
+
+set trace condition off . --- This does not seem to work
+set trace whole off .
+set trace substitution off .
+set trace mb off .
+set trace eq off .
+set trace rl on . --- on
+set trace select off .
+set trace rewrite off .
+set trace body off .
+set trace builtin off .
+
+rew initConfig .
+
+--- rew reachedTerminalConfigWithResponseLog(
+---     initConfig,
+---     tupleAddrResp(cAddr,
+---       response(1, 'www . 'microsoft . 'com . root,
+---         < 'www . 'microsoft . 'com . root, a, testTTL, addrTarget >, nil, nil, 0)
+---     )
+---   ) .

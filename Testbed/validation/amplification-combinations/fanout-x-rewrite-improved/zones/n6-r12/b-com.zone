@@ -1,0 +1,81 @@
+$TTL 3600
+@                       IN      SOA     server.b.com. username.b.com. (2006032201 7200 3600 1209600 36000)
+                        IN      NS      ns.b.com.
+ns.b.com.               IN      A       172.20.0.5
+
+n1r1.b.com.		IN		CNAME		n1r2.b.com.
+n1r2.b.com.		IN		CNAME		n1r3.b.com.
+n1r3.b.com.		IN		CNAME		n1r4.b.com.
+n1r4.b.com.		IN		CNAME		n1r5.b.com.
+n1r5.b.com.		IN		CNAME		n1r6.b.com.
+n1r6.b.com.		IN		CNAME		n1r7.b.com.
+n1r7.b.com.		IN		CNAME		n1r8.b.com.
+n1r8.b.com.		IN		CNAME		n1r9.b.com.
+n1r9.b.com.		IN		CNAME		n1r10.b.com.
+n1r10.b.com.		IN		CNAME		n1r11.b.com.
+n1r11.b.com.		IN		CNAME		n1r12.b.com.
+
+
+n2r1.b.com.		IN		CNAME		n2r2.b.com.
+n2r2.b.com.		IN		CNAME		n2r3.b.com.
+n2r3.b.com.		IN		CNAME		n2r4.b.com.
+n2r4.b.com.		IN		CNAME		n2r5.b.com.
+n2r5.b.com.		IN		CNAME		n2r6.b.com.
+n2r6.b.com.		IN		CNAME		n2r7.b.com.
+n2r7.b.com.		IN		CNAME		n2r8.b.com.
+n2r8.b.com.		IN		CNAME		n2r9.b.com.
+n2r9.b.com.		IN		CNAME		n2r10.b.com.
+n2r10.b.com.		IN		CNAME		n2r11.b.com.
+n2r11.b.com.		IN		CNAME		n2r12.b.com.
+
+
+n3r1.b.com.		IN		CNAME		n3r2.b.com.
+n3r2.b.com.		IN		CNAME		n3r3.b.com.
+n3r3.b.com.		IN		CNAME		n3r4.b.com.
+n3r4.b.com.		IN		CNAME		n3r5.b.com.
+n3r5.b.com.		IN		CNAME		n3r6.b.com.
+n3r6.b.com.		IN		CNAME		n3r7.b.com.
+n3r7.b.com.		IN		CNAME		n3r8.b.com.
+n3r8.b.com.		IN		CNAME		n3r9.b.com.
+n3r9.b.com.		IN		CNAME		n3r10.b.com.
+n3r10.b.com.		IN		CNAME		n3r11.b.com.
+n3r11.b.com.		IN		CNAME		n3r12.b.com.
+
+
+n4r1.b.com.		IN		CNAME		n4r2.b.com.
+n4r2.b.com.		IN		CNAME		n4r3.b.com.
+n4r3.b.com.		IN		CNAME		n4r4.b.com.
+n4r4.b.com.		IN		CNAME		n4r5.b.com.
+n4r5.b.com.		IN		CNAME		n4r6.b.com.
+n4r6.b.com.		IN		CNAME		n4r7.b.com.
+n4r7.b.com.		IN		CNAME		n4r8.b.com.
+n4r8.b.com.		IN		CNAME		n4r9.b.com.
+n4r9.b.com.		IN		CNAME		n4r10.b.com.
+n4r10.b.com.		IN		CNAME		n4r11.b.com.
+n4r11.b.com.		IN		CNAME		n4r12.b.com.
+
+
+n5r1.b.com.		IN		CNAME		n5r2.b.com.
+n5r2.b.com.		IN		CNAME		n5r3.b.com.
+n5r3.b.com.		IN		CNAME		n5r4.b.com.
+n5r4.b.com.		IN		CNAME		n5r5.b.com.
+n5r5.b.com.		IN		CNAME		n5r6.b.com.
+n5r6.b.com.		IN		CNAME		n5r7.b.com.
+n5r7.b.com.		IN		CNAME		n5r8.b.com.
+n5r8.b.com.		IN		CNAME		n5r9.b.com.
+n5r9.b.com.		IN		CNAME		n5r10.b.com.
+n5r10.b.com.		IN		CNAME		n5r11.b.com.
+n5r11.b.com.		IN		CNAME		n5r12.b.com.
+
+
+n6r1.b.com.		IN		CNAME		n6r2.b.com.
+n6r2.b.com.		IN		CNAME		n6r3.b.com.
+n6r3.b.com.		IN		CNAME		n6r4.b.com.
+n6r4.b.com.		IN		CNAME		n6r5.b.com.
+n6r5.b.com.		IN		CNAME		n6r6.b.com.
+n6r6.b.com.		IN		CNAME		n6r7.b.com.
+n6r7.b.com.		IN		CNAME		n6r8.b.com.
+n6r8.b.com.		IN		CNAME		n6r9.b.com.
+n6r9.b.com.		IN		CNAME		n6r10.b.com.
+n6r10.b.com.		IN		CNAME		n6r11.b.com.
+n6r11.b.com.		IN		CNAME		n6r12.b.com.

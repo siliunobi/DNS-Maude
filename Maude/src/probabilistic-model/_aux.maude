@@ -1,0 +1,70 @@
+load ../common/_aux
+load parameters
+
+mod AUX is
+  inc AUX-COMMON + PARAMETERS .
+
+  vars NAME QNAME SNAME SNAME_FULL : Name .
+  var QTYPE : RType .
+  vars RS ANS : List{Record} .
+  vars ADDR ADDR' ADDR'' : Address .
+  var NA : Map{Name, Address} .
+  var ZS : ZoneState .
+  vars ID ID' : Id .
+  var QSTATE : QueryState .
+  var QSS : QueryStateSet .
+  var QMIN_STATE : QMinState .
+  vars N N' : Nat .
+  var B : Bool .
+
+  --- Picks known name server address from the given SLIST map.
+  ---   Returns nullAddr if there is no known address.
+  op pickKnownAddr : Map{Name, Address} -> Address .
+  eq pickKnownAddr((NAME |-> ADDR, NA))
+    = if ADDR =/= nullAddr then ADDR else pickKnownAddr(NA) fi .
+  eq pickKnownAddr(empty) = nullAddr .
+
+  --- Sends the queries in the given QueryStateSet to a name server whose address is known.
+  ---   Note that all queries in the QueryStateSet should have at least one known name server address.
+  ---   Returns a Config consisting of ScheduleMsgs.
+  ---   Depending on the 'rsvTimeout?' parameter, the Config also contains self-addressed trigger messages
+  ---   that become active when the query times out.
+  --- Args: queries to be sent, resolver address
+  op sendQueries : QueryStateSet Address -> Config .
+  eq sendQueries(QSS, ADDR)
+    = if rsvTimeout?
+        then sendQueriesWithTimeout(QSS, ADDR)
+        else sendQueriesWithoutTimeout(QSS, ADDR)
+      fi .
+
+  op sendQueriesWithoutTimeout : QueryStateSet Address -> Config .
+  ceq sendQueriesWithoutTimeout((QSTATE ;; QSS), ADDR)
+    = [delay, to pickKnownAddr(NA) from ADDR :
+        query(ID', SNAME, if B then QTYPE else qminQTYPE fi), drop?]
+        sendQueriesWithoutTimeout(QSS, ADDR)
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', qminState(SNAME_FULL, N, N', B), ANS, < NAME NA >) := QSTATE .
+  eq sendQueriesWithoutTimeout(eptQSS, ADDR) = null .
+
+  op sendQueriesWithTimeout : QueryStateSet Address -> Config .
+  ceq sendQueriesWithTimeout((QSTATE ;; QSS), ADDR)
+    = [delay, to ADDR'' from ADDR :
+        query(ID', SNAME, if B then QTYPE else qminQTYPE fi), drop?]
+      [rsvTimeout + genRandom(0.0, 0.0001), to ADDR from ADDR : timeout(ID', ADDR''), 0] --- add noise to avoid non-determinism
+      sendQueriesWithTimeout(QSS, ADDR)
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', qminState(SNAME_FULL, N, N', B), ANS, < NAME NA >) := QSTATE /\
+       ADDR'' := pickKnownAddr(NA) .
+  eq sendQueriesWithTimeout(eptQSS, ADDR) = null .
+
+  --- Sends SERVFAIL responses to clients for all queries in the given QueryStateSet.
+  ---   Returns a Config consisting of ScheduleMsgs.
+  --- Args: queries, resolver address
+  op sendFailureResponses : QueryStateSet Address -> Config .
+  ceq sendFailureResponses((QSTATE ;; QSS), ADDR)
+    = if ADDR' == ADDR
+        then sendFailureResponses(QSS, ADDR) --- don't send failure responses to the resolver itself
+        else [delay, to ADDR' from ADDR : response(ID, QNAME, nil, nil, nil, 2), drop?] sendFailureResponses(QSS, ADDR)
+      fi
+    if queryState(query(ID, QNAME, QTYPE), ADDR', SNAME, ID', QMIN_STATE, ANS, ZS) := QSTATE .
+  eq sendFailureResponses(eptQSS, ADDR) = null .
+
+endm

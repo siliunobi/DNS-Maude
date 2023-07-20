@@ -1,0 +1,351 @@
+load actor
+
+fmod SORTS is
+  inc ADDRESS .
+  pr FLOAT .
+
+  --- We distinguish between names (e.g., example.com) and addresses (e.g., 1.1.1.1).
+  --- The "Address" type has already been defined in the "apmaude" file.
+  sorts Name NameList NameSet .
+  subsorts Name < NameList NameSet .
+  subsort Qid < Name .
+  subsort Nat < Address .
+
+  op nilNL : -> NameList [ctor] .
+  op __ : NameList NameList -> NameList [ctor assoc id: nilNL format (d nss d)] .
+
+  op eptNS : -> NameSet [ctor] .
+  op _;;;_ : NameSet NameSet -> NameSet [ctor comm assoc id: eptNS format (d d nss d)] .
+
+  op nullName : -> Name . --- an error name
+  op root : -> Name . --- explicit root label
+  op wildcard : -> Name . --- the '*' label used for wildcards
+  op _._ : Name Name -> Name [assoc prec 10] . --- 'a . 'b :: Name
+
+  op label : Nat -> Name . --- a convenient way to generate generic names
+  op label2 : Nat Nat -> Name . --- same, with two generic parameters
+
+  --- [RFC 1034, §3.6] Records
+  sort RType .
+  ops a ns soa cname dname mx txt srv anyType : -> RType [ctor] . --- constants
+
+  --- Type-specific record data
+  sort RData .
+  subsorts Name Address < RData .
+
+  op soaData : Float -> RData . --- the MINIMUM field of an SOA record, used for negative caching
+
+  sort Record .
+  op <_,_,_,_> : Name RType Float RData -> Record . --- < owner, type, TTL, data >
+
+  --- The cache consists of records with an associated credibility score,
+  --- i.e., with the "relative likely trustworthiness" according to RFC 2181, §5.4.1.
+  --- We represent the credibility score as a Nat, where a larger number means higher credibility.
+  --- The minimum credibility is 1, corresponding to the last bullet point in RFC 2181, §5.4.1,
+  --- and the highest credibility is 7, corresponding to the first bullet point.
+  sorts CacheEntry Cache .
+  subsort CacheEntry < Cache .
+
+  op cacheEntry : Record Nat -> CacheEntry [ctor] .
+
+  op nilCache : -> Cache [ctor] .
+  op __ : Cache Cache -> Cache [ctor assoc id: nilCache] .
+
+  --- Negative cache
+  --- NXDOMAIN cache
+  sorts NxdomainEntry NxdomainCache .
+  subsort NxdomainEntry < NxdomainCache .
+
+  op nxdomainEntry : Name Record Nat -> NxdomainEntry .
+
+  op nilNxdomainCache : -> NxdomainCache [ctor] .
+  op __ : NxdomainCache NxdomainCache -> NxdomainCache [ctor assoc id: nilNxdomainCache] .
+
+  --- NODATA cache
+  sorts NodataEntry NodataCache .
+  subsort NodataEntry < NodataCache .
+
+  op nodataEntry : Name RType Record Nat -> NodataEntry .
+
+  op nilNodataCache : -> NodataCache [ctor] .
+  op __ : NodataCache NodataCache -> NodataCache [ctor assoc id: nilNodataCache] .
+
+  sort Query .
+endfm
+--- The following views are necessary to create lists (LIST{X} is a functional module on X :: TRIV)
+view Name from TRIV to SORTS is sort Elt to Name . endv
+view Record from TRIV to SORTS is sort Elt to Record . endv
+view Query from TRIV to SORTS is sort Elt to Query . endv
+
+fmod SORTS-AUX is
+  inc SORTS .
+  pr LIST{Record} .
+  pr LIST{Query} .
+  pr MAP{Name,Address} .
+
+  --- [RFC 1034, §5.3.2] Resolver data structures
+  --- ZoneState is the "SLIST"/"SBELT" data structure: It stores the name of the best known zone and
+  --- a mapping from known name servers for that zone to their addresses.
+  --- Notes:
+  ---  * In the RFC, they store the "match count", whereas we store the name of the zone.
+  ---  * The RFC allows multiple addresses per name server, whereas we assume there is only one.
+  ---  * "History" is not modeled.
+  sort ZoneState .
+  op <_ _> : Name Map{Name,Address} -> ZoneState . --- a state is <zone, known_ns>
+
+endfm
+view ZoneState from TRIV to SORTS-AUX is sort Elt to ZoneState . endv
+
+fmod MSG is
+  inc SORTS-AUX + ACTOR-MODEL .
+  
+  --- Identifier used for messages
+  sorts Id IdList .
+  subsort Nat < Id .
+  subsort Id < IdList .
+
+  op clientId : Address Nat -> Id [ctor] .
+
+  op nilIdL : -> IdList [ctor] .
+  op _,_ : IdList IdList -> IdList [ctor assoc id: nilIdL format (d d s d)] .
+
+  op init : -> Id . --- an indicator that the resolver initialized the state for this query
+  ops ref cn : -> Id . --- an indicator that a referral or CNAME/DNAME was followed
+  op qm : -> Id . --- an indicator that an extra iteration due to QNAME minimization was necessary
+  op nxt : -> Id . --- an indicator that another name server was tried for the same query
+  op _.._ : Id Id -> Id [assoc prec 10] . --- message ids can be composed to create hierarchical ids
+
+  --- DNS message types ("Query" defined above)
+  sorts Response .
+  subsorts Query Response < Content .
+
+  --- [RFC 1034, §3.7] Queries
+  --- Query:
+  --- * identifier (used only in model to keep track of executions)
+  --- * QNAME (target domain name)
+  --- * QTYPE (target record type)
+  --- (excluded: QCLASS)
+  op query : Id Name RType -> Query .
+  --- Response:
+  --- * identifier and QNAME, same as above
+  --- * Answer (records that directly answer the query)
+  --- * Authority (records for referrals)
+  --- * Additional (glue records)
+  --- * RCODE (response code, e.g., name error)
+  op response : Id Name List{Record} List{Record} List{Record} Nat -> Response .
+  
+  op start : -> Content . --- client: artifical trigger to start execution
+  op processNextQuery : -> Content . --- name server: trigger to process next query
+  op timeout : Id Address -> Content . --- resolver: timeout trigger for a sent query
+  op overallTimeout : Query Address -> Content . --- resolver: timeout trigger for overall resolution of a client query
+  op stopSignal : -> Content . --- sent by a Client to a malicious client
+
+endfm
+view Id from TRIV to MSG is sort Elt to Id . endv
+
+fmod NODE is
+  inc ACTOR-MODEL + SORTS-AUX + MSG .
+
+  ------------------
+  --- [RESOLVER] ---
+  ------------------
+  --- [RFC 1034, §5.3.2] Resolver data structures
+  op Resolver : -> ActorType .
+
+  --- [RFC 1034, §5.3.2] Resolver data structures
+
+  --- CACHE: a list of records with associated credibility score (not modeling TTL)
+  op cache:_ : Cache -> Attribute [format (nss d d)] .
+
+  --- [RFC 2308] Negative caches
+  op nxdomainCache:_ : NxdomainCache -> Attribute [format (nss d d)] .
+  op nodataCache:_ : NodataCache -> Attribute [format (nss d d)] .
+
+  --- SBELT: "safety belt" for fallback; configured statically. ("servers which should be used
+  ---        when the resolver doesn't have any local information to guide name server selection")
+  op sbelt:_ : ZoneState -> Attribute [format (nss d d)] .
+
+  --- Work budget to limits how many queries the resolver sends out in response to a single client query.
+  --- cf. RFC 1035 §7.1: "A global per-request counter to limit work on a single request"
+  op workBudget:_ : IdNatMap -> Attribute [format (nss d d)] .
+
+  --- Per-query state (see explanation below)
+  --- A query in the resolver can be in one of two states:
+  --- * blocked: the query is currently blocked because there is no name server with known address;
+  ---            queries to resolve the unknown name server addresses have been sent out
+  --- * sent:    the query has been sent out to a name server and is awaiting a response
+  op blockedQueries:_ : QueryStateSet -> Attribute [format (nss d d)] .
+  op sentQueries:_ : QueryStateSet -> Attribute [format (nss d d)] .
+
+  --- QueryState models the per-query state for a single query
+  sorts QueryState QueryStateSet .
+  subsort QueryState < QueryStateSet .
+
+  sort QMinState .
+
+  --- The per-query state consists of:
+  --- * original query (either the query received from the client, or the original subquery created by the resolver)
+  --- * address where the original query came from (client or resolver)
+  --- * SNAME: the name that is currently being queried
+  --- * query id: the id of the current query (note that this is different from the id in the original query)
+  --- * QNAME minimization state
+  --- * partial Answer section: the CNAMEs/DNAMEs that have been followed
+  --- * SLIST: name servers suitable for this query and their addresses
+  --- Not modeled: SCLASS, timestamp, work budget
+  op queryState : Query Address Name Id QMinState List{Record} ZoneState -> QueryState [ctor] .
+
+  op eptQSS : -> QueryStateSet [ctor] .
+  op _;;_ : QueryStateSet QueryStateSet -> QueryStateSet [ctor comm assoc id: eptQSS format (d d nss d)] .
+
+  --- QNAME minimization state for a query:
+  --- * the "full" SNAME, i.e., with all labels
+  --- * remaining minimization iterations (cf. MAX_MINIMISE_COUNT config option)
+  --- * remaining one-label-iterations (cf. MINIMISE_ONE_LAB config option)
+  --- * flag whether qname minimization is done (cf. RFC 9156, §3, step 3), i.e., the original QTYPE should be used
+  op qminState : Name Nat Nat Bool -> QMinState .
+
+  --- Tuple{QueryStateSet, QueryStateSet}
+  sort PairQueryStateSet .
+  op pairQSS : QueryStateSet QueryStateSet -> PairQueryStateSet [ctor] .
+
+  --- Map{Id, Nat}
+  sorts IdNatEntry IdNatMap .
+  subsort IdNatEntry < IdNatMap .
+
+  op idNatEntry : Id Nat -> IdNatEntry [ctor] .
+  op emptyIN : -> IdNatMap [ctor] .
+  op _,_ : IdNatMap IdNatMap -> IdNatMap [ctor assoc comm id: emptyIN prec 121] .
+
+  --- Tuple{QueryStateSet, QueryStateSet, Map{Id, Nat}}
+  sort TupleQSSQSSIdNatMap .
+  op tupleQSSQSSIdNatMap : QueryStateSet QueryStateSet IdNatMap -> TupleQSSQSSIdNatMap [ctor] .
+
+  ---------------------
+  --- [NAME SERVER] ---
+  ---------------------
+  op Nameserver : -> ActorType .
+
+  --- The records stored at the name server. This includes authoritative and non-authoritative data,
+  --- e.g., NS records or glue records.
+  op db:_ : List{Record} -> Attribute [format (nss d d)] .
+
+  --- Query queue
+  sorts QueueEntry Queue .
+  subsort QueueEntry < Queue .
+
+  op nilQueue : -> Queue .
+  op queueEntry : Query Address -> QueueEntry .
+  op __ : Queue Queue -> Queue [ctor assoc id: nilQueue] .
+
+  op queue:_ : Queue -> Attribute [format (nss d d)] .
+  
+  ----------------
+  --- [CLIENT] ---
+  ----------------
+  op Client : -> ActorType .
+  op queries:_ : List{Query} -> Attribute .  --- closed loop
+  op resolver:_ : Address -> Attribute .  --- assuming a single resolver
+  op notifyDone:_ : Address -> Attribute . --- address of the actor that should be notified when done
+endfm
+
+fmod MONITOR is
+  inc ACTOR-MODEL + MSG .
+
+  --- Map{Address, Float}
+  sorts AddrFloatEntry AddrFloatMap .
+  subsort AddrFloatEntry < AddrFloatMap .
+
+  op addrFloatEntry : Address Float -> AddrFloatEntry [ctor] .
+  op emptyAF : -> AddrFloatMap [ctor] .
+  op _,_ : AddrFloatMap AddrFloatMap -> AddrFloatMap [ctor assoc comm id: emptyAF prec 121] .
+
+  --- Map{Id, Float}
+  sort IdFloatEntry IdFloatMap .
+  subsort IdFloatEntry < IdFloatMap .
+
+  op idFloatEntry : Id Float -> IdFloatEntry [ctor] .
+  op emptyIF : -> IdFloatEntry [ctor] .
+  op _,_ : IdFloatMap IdFloatMap -> IdFloatMap [ctor assoc comm id: emptyIF prec 121] .
+
+  --- Map{Id, Map{Address, Float}}
+  sorts IdAddrFloatEntry IdAddrFloatMap .
+  subsort IdAddrFloatEntry < IdAddrFloatMap .
+
+  op idAddrFloatEntry : Id AddrFloatMap -> IdAddrFloatEntry [ctor] .
+  op emptyIAF : -> IdAddrFloatMap [ctor] .
+  op _,_ : IdAddrFloatMap IdAddrFloatMap -> IdAddrFloatMap [ctor assoc comm id: emptyIAF prec 121] .
+
+  --- Map{Id, AddrList}
+  sorts IdAddrListEntry IdAddrListMap .
+  subsort IdAddrListEntry < IdAddrListMap .
+
+  op idAddrListEntry : Id AddrList -> IdAddrListEntry [ctor] .
+  op emptyIAL : -> IdAddrListMap [ctor] .
+  op _,_ : IdAddrListMap IdAddrListMap -> IdAddrListMap [ctor assoc comm id: emptyIAL prec 121] .
+
+  --- Tuple{Address, Query} and list thereof
+  sorts TupleAddrQuery TupleAddrQueryList .
+  subsort TupleAddrQuery < TupleAddrQueryList .
+
+  op tupleAddrQuery : Address Query -> TupleAddrQuery .
+  op nilTAQL : -> TupleAddrQueryList [ctor] .
+  op __ : TupleAddrQueryList TupleAddrQueryList -> TupleAddrQueryList [ctor assoc id: nilTAQL] .
+
+  --- Tuple{Address, Response} and list thereof
+  sorts TupleAddrResp TupleAddrRespList .
+  subsort TupleAddrResp < TupleAddrRespList .
+
+  op tupleAddrResp : Address Response -> TupleAddrResp .
+  op nilTARL : -> TupleAddrRespList [ctor] .
+  op __ : TupleAddrRespList TupleAddrRespList -> TupleAddrRespList [ctor assoc id: nilTARL] .
+
+  --- Tuple{Address, List{Record}} and set thereof
+  sorts TupleAddrRecs TupleAddrRecsSet .
+  subsort TupleAddrRecs < TupleAddrRecsSet .
+
+  op tupleAddrRecs : Address List{Record} -> TupleAddrRecs .
+  op eptTARecsS : -> TupleAddrRecsSet [ctor] .
+  op __ : TupleAddrRecsSet TupleAddrRecsSet -> TupleAddrRecsSet [ctor assoc comm id: eptTARecsS] .
+
+  --- Tuple{Name, List{Record}} and list thereof
+  sorts TupleNameRecs TupleNameRecsList .
+  subsort TupleNameRecs < TupleNameRecsList .
+
+  op tupleNameRecs : Name List{Record} -> TupleNameRecs .
+  op nilTNRL : -> TupleNameRecsList [ctor] .
+  op __ : TupleNameRecsList TupleNameRecsList -> TupleNameRecsList [ctor assoc id: nilTNRL] .
+
+  --- Tuple{Name, Cache, NxdomainCache, NodataCache, ZoneState, Name} and list thereof
+  --- These are exactly the argument sorts of the initSLIST function
+  sorts TupleSlistArgs TupleSlistArgsList .
+  subsort TupleSlistArgs < TupleSlistArgsList .
+
+  op tupleSlistArgs : Name Cache NxdomainCache NodataCache ZoneState Name -> TupleSlistArgs .
+  op nilTSAL : -> TupleSlistArgsList .
+  op __ : TupleSlistArgsList TupleSlistArgsList -> TupleSlistArgsList [ctor assoc id: nilTSAL] .
+
+  --- The Monitor and its attributes
+  op Monitor : -> ActorType .
+
+  op init:_ : Bool -> Attribute [format (nss d d)] . --- Whether the monitor has captured statistics of the initial state
+  op msgsRcv:_ : IdAddrFloatMap -> Attribute [format (nss d d)] .
+  op msgsSent:_ : IdAddrFloatMap -> Attribute [format (nss d d)] .
+  op totalRcv:_ : AddrFloatMap -> Attribute [format (nss d d)] .
+  op totalSent:_ : AddrFloatMap -> Attribute [format (nss d d)] .
+  op clientQSent:_ : Nat -> Attribute [format (nss d d)] .
+  op clientQAnswered:_ : Nat -> Attribute [format (nss d d)] .
+  op clientQServfail:_ : Nat -> Attribute [format (nss d d)] .
+  op clientQStartTime:_ : IdFloatMap -> Attribute [format (nss d d)] . --- The start time of a client query at the resolver
+  op clientQEndTime:_ : IdFloatMap -> Attribute [format (nss d d)] . --- The end time of a client query at the resolver
+  op idsObserved:_ : IdList -> Attribute [format (nss d d)] . --- records the ids of the queries received by name servers
+  op nsQueryLog:_ : TupleAddrQueryList -> Attribute [format (nss d d)] . --- records the queries received by name servers
+  op nsRespLog:_ : TupleAddrRespList -> Attribute [format (nss d d)] . --- records the responses sent by name servers
+  op nsRecs:_ : TupleAddrRecsSet -> Attribute [format (nss d d)] . --- records the records loaded at name servers
+  op clQueryLog:_ : TupleAddrQueryList -> Attribute [format (nss d d)] . --- records the queries sent by clients
+  op clRespLog:_ : TupleAddrRespList -> Attribute [format (nss d d)] . --- records the responses received by clients
+  op rsvRewriteLog:_ : TupleNameRecsList -> Attribute [format (nss d d)] . --- records names and partial answer sections
+  op rsvSlistLog:_ : TupleSlistArgsList -> Attribute [format (nss d d)] . --- records the arguments for SLIST initializations
+
+  op initSnapshot : Config -> Config . --- used to store a snapshot of the initial state in the monitor
+endfm
+

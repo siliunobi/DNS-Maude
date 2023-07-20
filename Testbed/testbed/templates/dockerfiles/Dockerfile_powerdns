@@ -1,0 +1,20 @@
+FROM ubuntu:jammy
+
+RUN apt-get update \
+  && apt-get install -y \
+  gnupg \
+  wget \
+  vim \
+  locate \
+    dnscap
+
+ARG VERSION
+
+RUN touch /etc/apt/sources.list.d/pdns.list
+RUN echo "deb [arch=amd64] http://repo.powerdns.com/ubuntu jammy-rec-$VERSION main" > /etc/apt/sources.list.d/pdns.list
+RUN echo "Package: pdns-*\nPin: origin repo.powerdns.com\nPin-Priority: 600" >> /etc/apt/preferences.d/pdns
+RUN wget -qO - https://repo.powerdns.com/FD380FBB-pub.asc | apt-key add -
+RUN apt-get update \
+    && apt-get install -y pdns-recursor
+# Run eternal loop
+CMD ["/bin/bash", "-c", "while :; do sleep 10; done"]

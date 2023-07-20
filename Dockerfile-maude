@@ -1,0 +1,52 @@
+FROM ubuntu:kinetic
+
+# Libtinfo necessary for maude, others are basic tools
+RUN apt-get update \
+  && apt-get install -y \
+	coreutils \ 
+	libtinfo5 \
+	nano \
+	python3 \
+	unzip \
+	wget \
+	apt-utils \
+	python3-pip
+
+# RUN pip3 install urllib3
+
+# Test installing docker via pip, https://github.com/docker/docker-py/issues/3113
+#RUN pip install docker
+# Or test
+
+
+# Install Maude
+
+RUN mkdir MAUDE_EXP
+COPY Maude /MAUDE_EXP
+# Download and unzip Maude 2.7.1
+RUN wget https://maude.cs.illinois.edu/w/images/5/5d/Maude-2.7.1-linux.zip
+RUN unzip Maude-2.7.1-linux.zip -d /maude
+# Add permissions
+RUN chmod +x /maude/ 
+
+# Add Maude to PATH
+# This line below is really important
+ENV PATH "$PATH:/maude/maude.linux64"
+
+RUN echo 'export PATH="$PATH:/maude/maude.linux64"' >> ~/.bashrc
+RUN echo "alias maude=/maude/maude.linux64"  >> ~/.bashrc
+RUN echo "export MAUDE_LIB='/maude'"  >> ~/.bashrc
+RUN chmod +x /maude/maude.linux64
+
+# Update the variables
+RUN ["/bin/bash", "-c", "source ~/.bashrc"]
+
+ENV PATH "$PATH:/bin/bash"
+
+# Copy and set the script that will run Maude experiment
+COPY script-maude-allOSes.sh /
+RUN chmod +x script-maude-allOSes.sh
+
+#RUN ["/bin/bash", "-c", "./script.sh"]
+#RUN service docker start
+

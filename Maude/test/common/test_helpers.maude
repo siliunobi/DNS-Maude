@@ -1,0 +1,78 @@
+load ../../src/common/prelim
+
+mod TEST-HELPERS-COMMON is
+  inc NODE + MONITOR .
+
+  var QS : List{Query} .
+  var CACHE : Cache .
+  vars ADDR : Address .
+  var STATE : AttributeSet .
+  var ACTOR : Actor .
+  var C : Config .
+  var AC : ActorConfig .
+  var IN : IdNatMap .
+  vars QSS QSS' : QueryStateSet .
+  vars N N' RCODE : Nat .
+  var R : Record .
+  vars RS RS' ANS ANS' AUTH AUTH' ADD ADD' : List{Record} .
+  vars TARL TARL' : TupleAddrRespList .
+  var NAME : Name .
+  var RTYPE : RType .
+  vars TTL TTL' : Float .
+  var RDATA : RData .
+  var ID : Id .
+  vars RESP RESP' : Response .
+
+  --- Returns true iff all clients have sent all their queries.
+  op clientsDone : ActorConfig -> Bool .
+  eq clientsDone(< ADDR : Client | queries: QS, STATE > AC)
+    = if QS == nil
+        then clientsDone(AC)
+        else false
+      fi .
+  eq clientsDone(ACTOR AC) = clientsDone(AC) [owise] .
+  eq clientsDone(null) = true .
+
+  --- Returns true iff all resolvers have no blockedQueries and no sentQueries and an empty workBudget.
+  op resolversDone : ActorConfig -> Bool .
+  eq resolversDone(< ADDR : Resolver | workBudget: IN, blockedQueries: QSS, sentQueries: QSS', STATE > AC)
+    = if IN == emptyIN and QSS == eptQSS and QSS' == eptQSS
+        then resolversDone(AC)
+        else false
+      fi .
+  eq resolversDone(ACTOR AC) = resolversDone(AC) [owise] .
+  eq resolversDone(null) = true .
+
+  --- Returns true if the number of responses received by the client and the number of SERVFAIL among them
+  ---   matches the expected number.
+  --- Args: config, number of expected answers, number of expected SERVFAILs among them
+  op expectedResponseCounts : Config Nat Nat -> [Bool] .
+  eq expectedResponseCounts(< ADDR : Monitor | clientQAnswered: N, clientQServfail: N', STATE > C, N, N') = true .
+
+  --- Returns true if the record lists agree, ignoring TTLs of the records.
+  op recListsAgree : List{Record} List{Record} -> Bool .
+  eq recListsAgree(< NAME, RTYPE, TTL, RDATA > RS, < NAME, RTYPE, TTL', RDATA > RS')
+    = recListsAgree(RS, RS') .
+  eq recListsAgree(nil, nil) = true .
+  eq recListsAgree(RS, RS') = false [owise] .
+
+  --- Returns true if the responses agree, ignoring TTLs of the records.
+  op respAgree : Response Response -> Bool .
+  eq respAgree(response(ID, NAME, ANS, AUTH, ADD, RCODE), response(ID, NAME, ANS', AUTH', ADD', RCODE))
+    = (recListsAgree(ANS, ANS') and recListsAgree(AUTH, AUTH') and recListsAgree(ADD, ADD')) .
+  eq respAgree(RESP, RESP') = false [owise] .
+
+  --- Returns true if the response logs agree, ignoring TTLs of the records.
+  op respLogsAgree : TupleAddrRespList TupleAddrRespList -> Bool .
+  eq respLogsAgree(tupleAddrResp(ADDR, RESP) TARL, tupleAddrResp(ADDR, RESP') TARL')
+    = respAgree(RESP, RESP') and respLogsAgree(TARL, TARL') .
+  eq respLogsAgree(nilTARL, nilTARL) = true .
+  eq respLogsAgree(TARL, TARL') = false [owise] .
+
+  --- Returns true if the responses received by clients are as expected.
+  op expectedClRespLog : Config TupleAddrRespList -> Bool .
+  eq expectedClRespLog(< ADDR : Monitor | clRespLog: TARL, STATE > C, TARL')
+    = respLogsAgree(TARL, TARL') .
+  eq expectedClRespLog(C, TARL') = false [owise] .
+
+endm

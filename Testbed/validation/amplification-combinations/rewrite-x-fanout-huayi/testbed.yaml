@@ -1,0 +1,55 @@
+root: "172.20.0.2"
+nameservers:
+  - id: "root"
+    ip: "172.20.0.2"
+    zones:
+    - qname: "."
+  - id: "com"
+    ip: "172.20.0.3"
+    zones:
+    - qname: "com."
+  - id: "net"
+    ip: "172.20.0.4"
+    zones:
+    - qname: "net."
+  - id: "target"
+    ip: "172.20.0.5"
+    zones:
+    - qname: "a.com."
+    - qname: "b.com."
+  - id: "inter"
+    ip: "172.20.0.6"
+    zones:
+    - qname: "q.a.com."
+    - qname: "r1.a.com."
+    - qname: "r2.a.com."
+    - qname: "r3.a.com."
+    - qname: "r4.a.com."
+    - qname: "r5.a.com."
+    - qname: "r6.a.com."
+    - qname: "r7.a.com."
+    - qname: "r8.a.com."
+    - qname: "r9.a.com."
+    - qname: "r10.a.com."
+    - qname: "r11.a.com."
+    - qname: "r12.a.com."
+    - qname: "r13.a.com."
+    - qname: "r14.a.com."
+    - qname: "r15.a.com."
+    - qname: "r16.a.com."
+
+resolvers:
+- implementation: "bind"
+  version: "9.18.4"
+  ip: "172.20.0.51"
+- implementation: "unbound"
+  version: "1.16.0"
+  ip: "172.20.0.52"
+- implementation: "powerdns"
+  version: "4.7"
+  ip: "172.20.0.54"
+
+client:
+  id: "client"
+  ip: "172.20.0.99"
+  nameserver: "172.20.0.51"

@@ -1,0 +1,7 @@
+name: "Fanout + QMIN Single Zone"
+target: "ns1"
+measure: "volume"
+queries:
+  - zone: "trigger.target.com"
+    record: "A"
+qmin: true
