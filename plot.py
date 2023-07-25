@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import itertools
-
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,6 +16,10 @@ from all_figures_plot import *
 from utils import *
 
 RESULTS_FOLDER = "./results/"
+
+# To avoid submission error
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_new_values_attack_model(attack, resolvers_folders):
     list_list_values = []
@@ -195,7 +199,7 @@ def main_subqueries_three_qmin():
 
     resolver_name_j = ["bind-9.18.4", "powerdns-4.7", "unbound-1.16.0"]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.3", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
 
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
@@ -271,7 +275,7 @@ def main_delay():
 
     resolver_name_j = ["bind-9.18.4", "powerdns-4.7", "unbound-1.16.0",]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.3", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
 
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
