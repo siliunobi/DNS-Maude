@@ -1,4 +1,4 @@
-# Artifact Evaluatiion
+# Artifact Evaluation for "A Formal Framework for End-to-End DNS Resolution"
 
 ## Setup
 
