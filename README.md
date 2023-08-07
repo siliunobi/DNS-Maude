@@ -1,6 +1,6 @@
 # Artifact for "A Formal Framework for End-to-End DNS Resolution"
 
-This repository contains the artifact for reproducing the results shown in the submission "A Formal Framework for End-to-End DNS Resolution".
+This repository contains the artifact for reproducing the results shown in the submission "[A Formal Framework for End-to-End DNS Resolution](https://github.com/siliunobi/DNS-Maude/blob/main/sigcomm23-paper683-submission.pdf)".
 
 ## Setup
 
