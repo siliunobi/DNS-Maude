@@ -1,5 +1,7 @@
 # Artifact for "A Formal Framework for End-to-End DNS Resolution"
 
+This repository contains the artifact for reproducing the results shown in the submission "A Formal Framework for End-to-End DNS Resolution".
+
 ## Setup
 
 This setup and docker file were tested on a MacOS system. Currently this is the only OS where both Maude and the testbed work.
