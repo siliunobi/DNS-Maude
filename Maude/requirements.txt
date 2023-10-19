@@ -1,2 +1,5 @@
 packaging
 networkx
+matplotlib
+numpy
+pandas

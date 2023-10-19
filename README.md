@@ -20,7 +20,7 @@ Alternatively, you can also install Docker manually :
 ## How to run + some explanations
 Firstly, we have to download the zipped folder that contains some scripts and the actual code for the Maude project and the testbed.
 
-Within that folder, we simply have to run the following command : 'bash script.sh' or ".\scrip.sh" that, regarding the Maude part, will take care of 
+Within that folder, we simply have to run the following command : bash `script.sh` or `.\script.sh` that, regarding the Maude part, will take care of 
 	1. Installing Maude
 	2. Building the image
 	3. Downloading all project files (from folder 'Maude') to the docker named 'artifact'
