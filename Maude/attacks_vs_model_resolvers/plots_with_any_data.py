@@ -1934,7 +1934,7 @@ def plot_sub_scrub_cname_qmin():
         list_colors = itertools.cycle(
             ("tab:blue", "tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green", "tab:red", "tab:red"))
 
-            powerdns_version = "PowerDNS 4.7.3"
+        powerdns_version = "PowerDNS 4.7.3"
         implementation_names = ["Model Unbound 1.10.0", "Unbound 1.10.0", "Model Unbound 1.16.0", "Unbound 1.16.0",
                                 "Model PowerDNS 4.7.0", powerdns_version, "Model BIND 9.18.4", "BIND 9.18.4"]
 
@@ -2014,7 +2014,7 @@ def plot_sub_scrub_dname_qmin():
         list_colors = itertools.cycle(
             ("tab:blue", "tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green", "tab:red", "tab:red"))
 
-            powerdns_version = "PowerDNS 4.7.3"
+        powerdns_version = "PowerDNS 4.7.3"
         implementation_names = ["Model Unbound 1.10.0", "Unbound 1.10.0", "Model Unbound 1.16.0", "Unbound 1.16.0",
                                 "Model PowerDNS 4.7.0", powerdns_version, "Model BIND 9.18.4", "BIND 9.18.4"]
 
