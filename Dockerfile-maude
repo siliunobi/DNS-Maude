@@ -16,7 +16,6 @@ RUN apt-get update \
 
 # Test installing docker via pip, https://github.com/docker/docker-py/issues/3113
 #RUN pip install docker
-# Or test
 
 
 # Install Maude
