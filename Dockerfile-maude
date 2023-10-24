@@ -46,6 +46,6 @@ ENV PATH "$PATH:/bin/bash"
 COPY script-maude-allOSes.sh /
 RUN chmod +x script-maude-allOSes.sh
 
-#RUN ["/bin/bash", "-c", "./script.sh"]
+#RUN ["/bin/bash", "-c", "./script-maude-allOSes.sh"]
 #RUN service docker start
 

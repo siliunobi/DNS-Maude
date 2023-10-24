@@ -319,7 +319,7 @@ def main_delay():
     # Leaves some space between the rows
     fig.subplots_adjust(right=0.2, bottom=0.4, wspace=0.9)
     # plt.margins(y=2)
-    fig.tight_layout() # if activated -> 1.07 in bbox_to_anchor
+    fig.tight_layout()  # if activated -> 1.07 in bbox_to_anchor
     save_figure(plt, filename)
 
     plt.close()
