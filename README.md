@@ -89,6 +89,14 @@ Otherwise, in case we want to execute directly the script when building the dock
 docker run --mount type=bind,source="${PWD}"/results,target=/results -v /var/run/docker.sock:/var/run/docker.sock -it artifact /bin/bash
 ```
 
+***NOTE*** : the initial ubuntu image (kinetic) used for the docker file of Maude has reached its End Of Life on the 14th of July. Due to this,
+we may not find the packages that are required to be installed due to GET requests to outdated sources. To allow these downloads,
+we added the two following lines inside `Dockerfile-maude` to set the mirrors to be used at `old-releases.ubuntu.com`:
+```dockerfile
+RUN sed -i -r 's/([a-z]{2}.)?archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+RUN sed -i -r 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+```
+
 ### Testbed
 The code used in this artifact for the testbed comes from this [GitHub repo](https://github.com/jaymoneyjay/dns-testbed) by Jodok Vieli at the state of the 16th July 2023.
 Inside the `script.sh` file, the actual code fulfilling steps 1-3 (installing Go, set environment variables, Go packages) of the testbed part comes from the README of the repo.

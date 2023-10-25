@@ -1,9 +1,13 @@
 FROM ubuntu:kinetic
 
+# To get updates and packages even though kinetic has reached its EOL
+RUN sed -i -r 's/([a-z]{2}.)?archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+RUN sed -i -r 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+
 # Libtinfo necessary for maude, others are basic tools
 RUN apt-get update \
   && apt-get install -y \
-	coreutils \ 
+	coreutils \
 	libtinfo5 \
 	nano \
 	python3 \
