@@ -10,12 +10,29 @@ from matplotlib.ticker import MaxNLocator
 from create_sub_ccv_qmin_files import *
 from utils import *
 
+MODEL_UNBOUND_1_16_0 = "Model Unbound 1.16.0"
+
+MODEL_UNBOUND_1_10_0 = "Model Unbound 1.10.0"
+
+QMIN_DISA_FOLDER = "qmin_disabled/"
+QMIN_ENA_FOLDER = "qmin_enabled/"
+
+# For the plots
+UPPER_CENTER = "upper center"
+
+MODEL_BIND_9_18_4 = "Model BIND 9.18.4"
+BIND_9_18_4 = "BIND 9.18.4"
+MODEL_POWERDNS_4_7_0 = "Model PowerDNS 4.7.0"
+
+MESSAGE_FILE_EXISTS = "FILE exists :"
+
+MESSAGE_FILE_DOES_NOT_EXIST_PASS = "The file doesn't exist. PASS "
+
 DATA_J_FOLDER = "data/j/"
 
 
 def save_figure(plt, filename):
     save_to_jpg(plt, filename)
-    # save_to_eps(plt, filename)
     # save_to_svg(plt, filename)
     save_to_pdf(plt, filename)
 
@@ -49,7 +66,7 @@ def save_to_eps(plt, filename):
 
 
 def read_to_float(filename):
-    '''Reads files and converts the values to float'''
+    """Reads files and converts the values to float"""
     with open(filename, "r") as f:
         values = f.readlines()[0][:-1].split(",")
         values = [float(i) for i in values]
@@ -116,7 +133,7 @@ def get_values_attack_model(attack, resolvers_folders):
         for folder in resolvers_folders:
             filename = get_filename(attack_folder + folder, dname=dname)
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
             # Only takes delay until 1400
             list_list_values.append(read_to_sec(filename)[0:8])
@@ -125,9 +142,9 @@ def get_values_attack_model(attack, resolvers_folders):
             filename = get_filename(attack_folder + folder, dname=dname)
             print(filename)
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
-            print("FILE exists :" + ", ".join([str(val) for val in read_to_float(filename)]))
+            print(MESSAGE_FILE_EXISTS + ", ".join([str(val) for val in read_to_float(filename)]))
             list_list_values.append(read_to_float(filename))
 
     return list_list_values
@@ -145,7 +162,7 @@ def get_values_attack_model_with_filename(attack, resolvers_folders, filename2):
             filename = attack_folder + folder + "/results/measurements/" + filename2 + ".txt" # get_filename(attack_folder + folder, dname=dname)
             print(filename)
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
                 # Only takes delay until 1400
             list_list_values.append(read_to_sec(filename)[0:8])
@@ -154,9 +171,9 @@ def get_values_attack_model_with_filename(attack, resolvers_folders, filename2):
             filename = attack_folder + folder + "/results/measurements/"+ filename2 + ".txt"
             print(filename)
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
-            print("FILE exists :" + ", ".join([str(val) for val in read_to_float(filename)]))
+            print(MESSAGE_FILE_EXISTS + ", ".join([str(val) for val in read_to_float(filename)]))
             list_list_values.append(read_to_float(filename))
 
     return list_list_values
@@ -173,7 +190,7 @@ def get_new_values_attack_model(attack, resolvers_folders):
         for folder in resolvers_folders:
             filename = attack_folder + folder + "/results/measurements/res_10labels_01nsdel.txt"
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
             # Only takes delay until 1400
             list_list_values.append(read_to_sec(filename)[0:8])
@@ -182,9 +199,9 @@ def get_new_values_attack_model(attack, resolvers_folders):
             filename = attack_folder + folder + "/results/measurements/res_10labels_01nsdel.txt"
             print(filename)
             if not os.path.isfile(filename):
-                print("The file doesn't exist. PASS ")
+                print(MESSAGE_FILE_DOES_NOT_EXIST_PASS)
                 continue
-            print("FILE exists :" + ", ".join([str(val) for val in read_to_float(filename)]))
+            print(MESSAGE_FILE_EXISTS + ", ".join([str(val) for val in read_to_float(filename)]))
             list_list_values.append(read_to_float(filename))
 
     return list_list_values
@@ -351,8 +368,8 @@ def main():
 
     resolver_name_j = ["bind-9.18.4", "powerDNS-4.7.3", "unbound-1.10.0", "unbound-1.16.0"]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.10.0",
-                   "Unbound 1.10.0", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = [MODEL_BIND_9_18_4, BIND_9_18_4, MODEL_POWERDNS_4_7_0, "PowerDNS 4.7.3", MODEL_UNBOUND_1_10_0,
+                   "Unbound 1.10.0", MODEL_UNBOUND_1_16_0, "Unbound 1.16.0", ]
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
 
@@ -373,7 +390,7 @@ def main():
     filename = "Figure1_all_attacks"
 
     # Bbox_to_anchors to add spacing between legend and plots
-    leg = fig.legend(names_lines, loc="upper center", ncol=len(names_lines) // 2, fontsize=6, borderaxespad=0,
+    leg = fig.legend(names_lines, loc=UPPER_CENTER, ncol=len(names_lines) // 2, fontsize=6, borderaxespad=0,
                      bbox_to_anchor=(0.5, 1.07), frameon=False)  # , mode='expand')
     # Leaves some space between the rows
     fig.subplots_adjust(hspace=0.3)
@@ -409,14 +426,14 @@ def main_cname_qmin():
 
     resolver_name_j = ["bind-9.18.4", "powerdns-4.7", "unbound-1.10.0", "unbound-1.16.0"]
     resolver_name_j = ["resolver-" + res for res in resolver_name_j]
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.10.0",
-                   "Unbound 1.10.0", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = [MODEL_BIND_9_18_4, BIND_9_18_4, MODEL_POWERDNS_4_7_0, "PowerDNS 4.7.3", MODEL_UNBOUND_1_10_0,
+                   "Unbound 1.10.0", MODEL_UNBOUND_1_16_0, "Unbound 1.16.0", ]
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
 
         add_labels = True
 
-        list_list_values_model = get_new_values_attack_model(attack, ["qmin_enabled/" + res for res in resolvers_folders])
+        list_list_values_model = get_new_values_attack_model(attack, [QMIN_ENA_FOLDER + res for res in resolvers_folders])
         print("LIST OF VALUES FOR ATTACK : " + attack.name_attack)
         print(list_list_values_model)
 
@@ -431,7 +448,7 @@ def main_cname_qmin():
     filename = attacks[0].folder + "/" + "CNAME_Scrubbing_QMIN"
 
     # Bbox_to_anchors to add spacing between legend and plots
-    leg = fig.legend(names_lines, loc="upper center", ncol=len(names_lines) // 2, fontsize=6, borderaxespad=0,
+    leg = fig.legend(names_lines, loc=UPPER_CENTER, ncol=len(names_lines) // 2, fontsize=6, borderaxespad=0,
                      bbox_to_anchor=(0.5, 1.07), frameon=False)  # , mode='expand')
     # Leaves some space between the rows
     fig.subplots_adjust(hspace=0.3)
@@ -468,7 +485,7 @@ def main_subqueries_three_qmin():
 
     resolver_name_j = ["bind-9.18.4", "powerDNS-4.7.3", "unbound-1.16.0"]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = [MODEL_BIND_9_18_4, BIND_9_18_4, MODEL_POWERDNS_4_7_0, "PowerDNS 4.7.3", MODEL_UNBOUND_1_16_0, "Unbound 1.16.0", ]
 
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
@@ -509,7 +526,7 @@ def main_subqueries_three_qmin():
     filename = "Figure1_chained_attacks"
 
     # Bbox_to_anchors to add spacing between legend and plots
-    leg = fig.legend(names_lines, loc="upper center", ncol=len(names_lines) // 2, fontsize=10, borderaxespad=-1.4,
+    leg = fig.legend(names_lines, loc=UPPER_CENTER, ncol=len(names_lines) // 2, fontsize=10, borderaxespad=-1.4,
                      bbox_to_anchor=(0.5, 1.07), frameon=False)  # , mode='expand')
     # Leaves some space between the rows
     # fig.subplots_adjust(hspace=0.3)
@@ -548,14 +565,14 @@ def main_cname_qmin_delay():
     resolver_name_j = ["bind-9.18.4", "powerdns-4.7", "unbound-1.10.0", "unbound-1.16.0"]
     resolver_name_j = ["resolver-" + res for res in resolver_name_j]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.10.0",
-                   "Unbound 1.10.0", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = [MODEL_BIND_9_18_4, BIND_9_18_4, MODEL_POWERDNS_4_7_0, "PowerDNS 4.7.3", MODEL_UNBOUND_1_10_0,
+                   "Unbound 1.10.0", MODEL_UNBOUND_1_16_0, "Unbound 1.16.0", ]
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
 
         add_labels = True
 
-        list_list_values_model = get_new_values_attack_model(attack, ["qmin_enabled/" + res for res in resolvers_folders])
+        list_list_values_model = get_new_values_attack_model(attack, [QMIN_ENA_FOLDER + res for res in resolvers_folders])
         print("LIST OF VALUES FOR ATTACK : " + attack.name_attack)
         print(list_list_values_model)
 
@@ -573,7 +590,7 @@ def main_cname_qmin_delay():
     filename = attacks[0].folder + "/" + "SLOWDNS_CNAME_Scrubbign_QMIN"
 
     # Bbox_to_anchors to add spacing between legend and plots
-    leg = fig.legend(names_lines, loc="upper center", ncol=len(names_lines) // 2, fontsize=7, borderaxespad=0,
+    leg = fig.legend(names_lines, loc=UPPER_CENTER, ncol=len(names_lines) // 2, fontsize=7, borderaxespad=0,
                      bbox_to_anchor=(0.5, 1.07), frameon=False)  # , mode='expand')
     # Leaves some space between the rows
     fig.subplots_adjust(hspace=0.3)
@@ -612,7 +629,7 @@ def main_delay():
 
     resolver_name_j = ["bind-9.18.4", "powerDNS-4.7.3", "unbound-1.16.0",]
 
-    names_lines = ["Model BIND 9.18.4", "BIND 9.18.4", "Model PowerDNS 4.7.0", "PowerDNS 4.7.3", "Model Unbound 1.16.0", "Unbound 1.16.0", ]
+    names_lines = [MODEL_BIND_9_18_4, BIND_9_18_4, MODEL_POWERDNS_4_7_0, "PowerDNS 4.7.3", MODEL_UNBOUND_1_16_0, "Unbound 1.16.0", ]
 
     alphabet = string.ascii_lowercase
     for index, attack in enumerate(attacks):
@@ -620,10 +637,10 @@ def main_delay():
         add_labels = index < 2
 
         if type(attack) is CCV_QMIN_Delay:
-            list_list_values_model = get_values_attack_model_with_filename(attack, ["qmin_enabled/" + res for res in resolvers_folders], "res_10labels_01nsdel")
+            list_list_values_model = get_values_attack_model_with_filename(attack, [QMIN_ENA_FOLDER + res for res in resolvers_folders], "res_10labels_01nsdel")
         else:
             # Do not use QMIN for this attack
-            list_list_values_model = get_values_attack_model_with_filename(attack, ["qmin_disabled/" + res for res in resolvers_folders], "res_00labels_01nsdel")
+            list_list_values_model = get_values_attack_model_with_filename(attack, [QMIN_DISA_FOLDER + res for res in resolvers_folders], "res_00labels_01nsdel")
 
         # print("LIST OF VALUES FOR ATTACK : " + attack.name_attack)
         # print(list_list_values_model)
@@ -648,7 +665,7 @@ def main_delay():
     filename = "Figure2_delayed_attacks"
 
     # Bbox_to_anchors to add spacing between legend and plots
-    leg = fig.legend(names_lines, loc="upper center", ncol=len(names_lines) // 2, fontsize=12, borderaxespad=0,
+    leg = fig.legend(names_lines, loc=UPPER_CENTER, ncol=len(names_lines) // 2, fontsize=12, borderaxespad=0,
                      bbox_to_anchor=(0.5, 1.00), frameon=False)  # , mode='expand')
 
     # Leaves some space between the rows

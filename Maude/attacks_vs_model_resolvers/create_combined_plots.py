@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-import os
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-import time
-import numpy as np
-import re
-from create_sub_ccv_qmin_files import *
-from utils import *
-import plot_utils
-import model_attack_file
-
 import itertools
 
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import MaxNLocator
+
+import model_attack_file
+import plot_utils
+from create_sub_ccv_qmin_files import *
 from plot_utils import save_high_quality, text_plot_qmin
+from utils import *
+
+TEXT_MODEL_ = "Model "
+
+FOLDER_THEN_FOLDER_RESULTS = "{}/results/"
+
+NB_LABEL_STRING = "#Labels={}"
+
+LABEL_NB_QUERIES_SENT_TO_VICTIM = '# queries sent to victim nameserver'
+TEXT_NB_DELEGATIONS = "Number of delegations"
 
 INCORRECT_ABORTING = "Number of missing attributes is not correct.\n Aborting ... "
 
@@ -57,7 +63,7 @@ def create_combine_models_only(list_list_values, filename, resolver_names, folde
         print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
@@ -74,7 +80,7 @@ def create_combine_models_only(list_list_values, filename, resolver_names, folde
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -130,7 +136,7 @@ def create_combined_plots_simple(list_list_values, filename, resolver_names, fol
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys()]
     vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
@@ -192,17 +198,17 @@ def create_combined_plots_dname(list_list_values, filename, resolver_names, fold
         print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "dname_chain_length": "Length of the DNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "dname_chain_length": "Length of the DNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 100)
 
-    # fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)), "dname_chain_length": "DNAME_length={}".format(str(dname_chain_length)), "nb_labels": "#Labels={}".format(str(nb_labels))}
+    # fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)), "dname_chain_length": "DNAME_length={}".format(str(dname_chain_length)), "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     # fixed =  [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = "DNAME_length={}".format(str(dname_chain_length))  # ", ".join(fixed)
 
@@ -251,12 +257,12 @@ def create_combined_plots_cname(list_list_values, filename, resolver_names, fold
     except:
         print(INCORRECT_ABORTING)
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 110)
@@ -264,7 +270,7 @@ def create_combined_plots_cname(list_list_values, filename, resolver_names, fold
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -313,13 +319,13 @@ def create_combined_plots_unchained_cname(list_list_values, filename, resolver_n
         print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
 
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, len(list_list_values[0]))
     ax.set_ylim(0, 110)
@@ -327,7 +333,7 @@ def create_combined_plots_unchained_cname(list_list_values, filename, resolver_n
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -380,15 +386,15 @@ def create_combined_plots_cname_scrub(list_list_values, filename, resolver_names
     try:
         assert len(missing_attributes) == 1
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, len(list_list_values[0]))
     ax.set_ylim(0, 210)
@@ -396,7 +402,7 @@ def create_combined_plots_cname_scrub(list_list_values, filename, resolver_names
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -449,16 +455,16 @@ def create_combined_plots_cname_scrub_qmin(list_list_values, filename, resolver_
     try:
         assert len(missing_attributes) == 1
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
     #
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, len(list_list_values[0]))
     ax.set_ylim(0, 210)
@@ -466,7 +472,7 @@ def create_combined_plots_cname_scrub_qmin(list_list_values, filename, resolver_
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -523,16 +529,16 @@ def create_combined_plots_unchained_cname_qmin(list_list_values, filename, resol
     try:
         assert len(missing_attributes) == 1
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
     #
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, len(list_list_values[0]))
     ax.set_ylim(0, 110)
@@ -540,7 +546,7 @@ def create_combined_plots_unchained_cname_qmin(list_list_values, filename, resol
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -804,7 +810,7 @@ def create_combined_plots_sub_cname_scrub_qmin(list_list_values, filename, resol
     # ns_delay = match.group(1)
 
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
-    ax.set_xlabel("Number of delegations")  # x_labels[missing_attributes[0]], fontsize=12)
+    ax.set_xlabel(TEXT_NB_DELEGATIONS)  # x_labels[missing_attributes[0]], fontsize=12)
     #
     ax.set_ylabel('Number of queries received', fontsize=12)
 
@@ -854,7 +860,7 @@ def create_combined_plots_dname_scrub_qmin(list_list_values, filename, resolver_
     # ns_delay = match.group(1)
 
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
-    ax.set_xlabel("Number of delegations")  # x_labels[missing_attributes[0]], fontsize=12)
+    ax.set_xlabel(TEXT_NB_DELEGATIONS)  # x_labels[missing_attributes[0]], fontsize=12)
     #
     ax.set_ylabel('Number of queries received', fontsize=12)
 
@@ -955,16 +961,16 @@ def create_combined_plots(list_list_values, filename, resolver_names, folder_fig
     try:
         assert (len(missing_attributes) == 1)
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
-    x_labels = {"ns_del": "Number of delegations", "cname_chain_length": "Length of the CNAME chain",
+    x_labels = {"ns_del": TEXT_NB_DELEGATIONS, "cname_chain_length": "Length of the CNAME chain",
                 "nb_labels": "Number of labels"}
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
     ax.set_xlabel(x_labels[missing_attributes[0]], fontsize=12)
     #
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 1700)
@@ -972,7 +978,7 @@ def create_combined_plots(list_list_values, filename, resolver_names, folder_fig
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "cname_chain_length": "CNAME_length={}".format(str(cname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -1017,14 +1023,14 @@ def create_combined_plots_sub_cname_val(list_list_values, filename, resolver_nam
     try:
         assert (len(missing_attributes) == 1)
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
-    ax.set_xlabel("Number of delegations", fontsize=12)
+    ax.set_xlabel(TEXT_NB_DELEGATIONS, fontsize=12)
     #
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 200)
@@ -1072,13 +1078,13 @@ def create_combined_plots_dname_val(list_list_values, filename, resolver_names, 
     try:
         assert (len(missing_attributes) == 1)
     except:
-        print("Number of missing attributes is not correct.\n Aborting ... ")
+        print(INCORRECT_ABORTING)
         return
 
     # Determine the x_axis label regarding the missing_attributes attribute in the filename
     missing_att = missing_attributes[0]
-    ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_xlabel(TEXT_NB_DELEGATIONS, fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 200)
@@ -1086,7 +1092,7 @@ def create_combined_plots_dname_val(list_list_values, filename, resolver_names, 
 
     fixed_vars = {"ns_del": "#Del={}".format(str(ns_del)),
                   "dname_chain_length": "DNAME_length={}".format(str(dname_chain_length)),
-                  "nb_labels": "#Labels={}".format(str(nb_labels))}
+                  "nb_labels": NB_LABEL_STRING.format(str(nb_labels))}
     fixed = [fixed_vars[i] for i in fixed_vars.keys() if i != missing_att]
     vars = ", ".join(fixed)
 
@@ -1130,7 +1136,7 @@ def main():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1177,7 +1183,7 @@ def main_dname():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1222,9 +1228,9 @@ def main_cname():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1270,9 +1276,9 @@ def main_unchained_cname():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1317,9 +1323,9 @@ def main_cname_scrub():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1370,9 +1376,9 @@ def main_cname_scrub_qmin():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1417,9 +1423,9 @@ def main_dname_validation():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1467,7 +1473,7 @@ def main_sub_cname_scrub_delay():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1514,7 +1520,7 @@ def main_sub_cname_scrub_qmin_delay():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1562,7 +1568,7 @@ def main_cname_scrub_delay():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1610,7 +1616,7 @@ def main_cname_scrub_qmin_delay():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1659,7 +1665,7 @@ def main_sub_cname_scrub_qmin():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1706,7 +1712,7 @@ def main_unchained_cname_qmin():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1754,7 +1760,7 @@ def main_sub_dname_scrub_qmin():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1798,9 +1804,9 @@ def main_sub_cname_validation():
     print("Start of the creation of the combined plots for the attack {} ....\n".format(attack_folder[:-1]))
     time1 = time.perf_counter()
 
-    resolver_names = ["Model " + res.name for res in resolver_models]
+    resolver_names = [TEXT_MODEL_ + res.name for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(res.folder) for res in resolver_models]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(res.folder) for res in resolver_models]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])
@@ -1847,7 +1853,7 @@ def main_dname_scrub_delay():
 
     resolver_names = [res.folder for res in resolver_models]
 
-    FOLDERS_RESULTS = [attack_folder + "{}/results/".format(name) for name in resolver_names]
+    FOLDERS_RESULTS = [attack_folder + FOLDER_THEN_FOLDER_RESULTS.format(name) for name in resolver_names]
     FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
     for i in range(0, len(resolver_models)):
         check_folder_exists(FOLDERS_RESULTS[i])

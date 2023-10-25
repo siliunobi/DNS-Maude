@@ -17,10 +17,10 @@ import utils
 #  ---eq rsvMinCacheCredClient = 5 .
 #  ---eq rsvMinCacheCredResolver = 5 .
 
+PATH_TO_MAIN_DIR = "../../../../.."
+
 
 def main():
-     # PowerDNS4_7_0_QMIN()
-    PATH_TO_MAIN_DIR = "../../../../.."
     scrubbing = True
 
     variants = [SubqueriesDCVQMINA()]

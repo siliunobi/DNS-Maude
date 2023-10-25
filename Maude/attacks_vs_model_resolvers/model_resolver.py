@@ -1,6 +1,7 @@
 # For every resolver implementation, check the maxFetch and maxFetchParam, as well as
 # whether CNAME chain validation should be enabled with rsvMinCacheCredClient
 # and rsvMinCacheCredResolver, and the workBudget
+NO_CHAIN_VALIDATION = " NO CHAIN VALIDATION"
 
 MAX_SUBQUERIES = 100000
 
@@ -74,7 +75,7 @@ class Unbound1_10_0_NO_CHAIN_VALIDATION(Unbound1_10_0):
     # For Subqueries + Unchained attacks
     def __init__(self):
         Unbound1_10_0.__init__(self)
-        self.name += " NO CHAIN VALIDATION"
+        self.name += NO_CHAIN_VALIDATION
         self.folder = "unbound1_10_0_no_chain_val"
 
         self.cname_chain_validation = False
@@ -117,7 +118,7 @@ class Unbound1_16_0_NO_CHAIN_VALIDATION(Unbound1_16_0):
     # For Subqueries + Unchained attacks
     def __init__(self):
         Unbound1_16_0.__init__(self)
-        self.name += " NO CHAIN VALIDATION"
+        self.name += NO_CHAIN_VALIDATION
         self.folder = "unbound1_16_0_no_chain_val"
 
         self.cname_chain_validation = False
@@ -210,7 +211,7 @@ class PowerDNS4_7_0_NO_CHAIN_VALIDATION(PowerDNS4_7_0):
     # For Subqueries + Unchained attacks
     def __init__(self):
         PowerDNS4_7_0.__init__(self)
-        self.name += " NO CHAIN VALIDATION"
+        self.name += NO_CHAIN_VALIDATION
         self.folder = "powerDNS4_7_0_no_chain_val"
 
         self.cname_chain_validation = False
@@ -256,7 +257,7 @@ class Bind9_18_4_NO_CHAIN_VALIDATION(Bind9_18_4):
     # Also used for Subqueries + DNAME scrubbing
     def __init__(self):
         Bind9_18_4.__init__(self)
-        # self.name += " NO CHAIN VALIDATION"
+        # self.name += NO_CHAIN_VALIDATION
         self.folder = "bind9_18_4_no_chain_val"
 
         self.cname_chain_validation = False

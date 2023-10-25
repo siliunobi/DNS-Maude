@@ -8,12 +8,15 @@ from model_resolver import Unbound1_10_0, Unbound1_16_0, Bind9_18_4, \
     Bind9_18_4_NO_CHAIN_VALIDATION, Unbound1_16_0_CNAME_BYPASSED, Unbound1_10_0_CNAME_BYPASSED
 from watcher import Watcher
 
+FILES_FOLDER = "files/"
+
 """This file creates and runs the attack Subqueries+Scrubbing+DNAME and the version
 with delay, also called Parallel NS + Scrubbing + DNAME."""
 
 
+PATH_TO_MAIN_DIR = "../../../../.."
+
 def main():
-    PATH_TO_MAIN_DIR = "../../../../.."
     scrubbing = True
     # QMIN_DEACTIVATED = False
 
@@ -90,8 +93,8 @@ def main():
                                    format(original_labels, '02d') + "labels" + ".maude"
                             print("Path of the file to be executed : " + path)
 
-                            file_path = BASE_FOLDER + "files/" + path
-                            utils.check_folder_exists(BASE_FOLDER + "files/")
+                            file_path = BASE_FOLDER + FILES_FOLDER + path
+                            utils.check_folder_exists(BASE_FOLDER + FILES_FOLDER)
 
                             # Implement artificially the limits
                             labels, dname_chain_length, ns_del = \
@@ -141,7 +144,7 @@ def main():
                                    format(original_labels, '02d') + "labels" + ".maude"
                             print("Path of the file to be executed : " + path)
 
-                            FILES_FOLDER = BASE_FOLDER + "files/"
+                            FILES_FOLDER = BASE_FOLDER + FILES_FOLDER
                             utils.check_folder_exists(FILES_FOLDER)
 
                             file_path = FILES_FOLDER + path

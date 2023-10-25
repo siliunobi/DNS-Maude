@@ -3,8 +3,9 @@ import re
 import time
 
 import utils
-from model_resolver import Unbound1_10_0_NO_CHAIN_VALIDATION,  Unbound1_16_0_NO_CHAIN_VALIDATION, PowerDNS4_7_0_NO_CHAIN_VALIDATION, PowerDNS4_7_0_QMIN_NO_CHAIN_VALIDATION, Bind9_18_4_NO_CHAIN_VALIDATION
 from model_attack_file import SubqueriesUnchainedDNAME
+from model_resolver import Unbound1_10_0_NO_CHAIN_VALIDATION, Unbound1_16_0_NO_CHAIN_VALIDATION, \
+    Bind9_18_4_NO_CHAIN_VALIDATION
 from watcher import Watcher
 
 """This file creates and runs the attack Subqueries + Unchained + DNAME, also

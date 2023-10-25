@@ -12,6 +12,16 @@ from utils import *
 from plot_utils import save_high_quality, text_plot_qmin
 from pathlib import Path
 
+LABEL_CNAME_LENGTH = "CNAME_length={}"
+
+FOLDER_COMPARISON = "/comparison/"
+
+LABEL_DELAY_MS_OR_TIME_UNIT = "Artificial delay (ms or time unit)"
+
+LABEL_NB_QUERIES_SENT_TO_VICTIM = '# queries sent to victim nameserver'
+
+NB_LABEL_STRING = "#Labels={}"
+
 '''This file is used to plot my resolver models curves against the real implementation curves.'''
 
 DATA_L_FOLDER = "data/l/"
@@ -28,7 +38,6 @@ def read_to_float(filename):
 
 
 def read_test_j_files(filename, resolver_name, target_value, order_name):
-
     df = pd.read_csv(filename)
     # print(df.head)
     resolver = df.loc[df['resolver'] == resolver_name]
@@ -97,7 +106,7 @@ def c():
     ax.set_ylim(0, 1700)
 
     # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
-    fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
+    fixed = [LABEL_CNAME_LENGTH.format(str(cname_chain_length)), NB_LABEL_STRING.format(str(nb_labels))]
     vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title('Amplification factor c/nameserver with Sub+CCV+QMIN \n Fixed values : {vars}'.format(vars=vars),
@@ -156,7 +165,7 @@ def plot_subccvqmin_unbound1_10_0():
     ax.set_ylim(0, 1700)
 
     # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
-    fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
+    fixed = [FOLDER_COMPARISON.format(str(cname_chain_length)), NB_LABEL_STRING.format(str(nb_labels))]
     vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title('Amplification factor c/nameserver with Sub+CCV+QMIN \n Fixed values : {vars}'.format(vars=vars),
@@ -224,13 +233,13 @@ def plot_subccvqmin_unbound1_16_0():
     nb_labels = 10
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 1700)
 
     # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
-    fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
+    fixed = [FOLDER_COMPARISON.format(str(cname_chain_length)), NB_LABEL_STRING.format(str(nb_labels))]
     vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title('Queries sent to victim nameserver with Sub+CCV+QMIN \n Fixed values : {vars}'.format(vars=vars),
@@ -305,13 +314,13 @@ def plot_subccvqmin():
     nb_labels = 10
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 1800)
 
     # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
-    fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
+    fixed = [FOLDER_COMPARISON.format(str(cname_chain_length)), NB_LABEL_STRING.format(str(nb_labels))]
     vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
@@ -333,7 +342,6 @@ def plot_subccvqmin():
 
 
 def plot_subccvdelay_powerdns():
-
     attack_folder = "sub-ccv-delay"
     list_markers = itertools.cycle(("x", "d", "p", "*"))  # "p","*","s", "o", "."))
     list_linestyle = itertools.cycle(("--", "-", ":"))
@@ -379,14 +387,14 @@ def plot_subccvdelay_powerdns():
     cname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 15)
 
     # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
-    fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
+    fixed = [FOLDER_COMPARISON.format(str(cname_chain_length)), NB_LABEL_STRING.format(str(nb_labels))]
     vars = ", ".join(fixed)
     ax.set_title(
         'Duration of queries sent to victim nameserver with Sub+CCV+Delay (slow DNS) \n Fixed values : {vars}'.format(
@@ -444,7 +452,7 @@ def plot_sub_unchained_cname_models():
     print(fields)
 
     values_model_u1_10_L = [float(row[fields.index("Model; chain length 9 (to example.com nameserver)")]) for row in
-                                rows]
+                            rows]
     values_model_u1_16_L = [
         float(row[fields.index("Model maxFetch(6); chain length 12 (to example.com nameserver)")]) for row in rows]
     values_model_pdns4_7_L = [
@@ -464,13 +472,12 @@ def plot_sub_unchained_cname_models():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 110)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+Unchained with CNAME \n using MODELS; Fixed values : {vars} \n and {qmin}'.format(
@@ -480,13 +487,11 @@ def plot_sub_unchained_cname_models():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_cname_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_cname_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -566,13 +571,12 @@ def plot_sub_unchained_cname():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 110)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+Unchained with CNAME \n Fixed values : {vars}and {qmin}'.format(
@@ -582,13 +586,11 @@ def plot_sub_unchained_cname():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_cname_7-2"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_cname_7-2"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -636,7 +638,7 @@ def plot_sub_cname_scrubbing_models():
 
     # Beware "chain length 9, Model" is "Model; chain length 9"
     values_model_u1_10_L = [float(row[fields.index("Model; chain length 9 (to example.com nameserver)")]) for row in
-                                rows]
+                            rows]
     values_model_u1_16_L = [
         float(row[fields.index("Model maxFetch(6); chain length 12 (to example.com nameserver)")]) for row in rows]
     values_model_pdns4_7_L = [
@@ -659,13 +661,12 @@ def plot_sub_cname_scrubbing_models():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 200)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+CNAME scrubbing \n Fixed values : {vars} and {qmin}\n Reproduction of Figure 7.4'.format(
@@ -675,8 +676,8 @@ def plot_sub_cname_scrubbing_models():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_cname_scrubbing_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_cname_scrubbing_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -684,8 +685,6 @@ def plot_sub_cname_scrubbing_models():
     # plot_path = "fig_sub_ccv_L_resolver_model_7-4.jpg"
     # if os.path.exists(plot_path):
     #     os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -770,13 +769,12 @@ def plot_sub_cname_scrubbing():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 200)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
 
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+CNAME scrubbing \n Fixed values : {vars} and {qmin}\n Reproduction of Figure 7.4'.format(
@@ -786,8 +784,8 @@ def plot_sub_cname_scrubbing():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_cname_scrubbing_7-4"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_cname_scrubbing_7-4"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
@@ -796,8 +794,6 @@ def plot_sub_cname_scrubbing():
     # if os.path.exists(plot_path):
     #     os.remove(plot_path)
     #     #print("removed plot")
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -858,7 +854,7 @@ def plot_sub_cname_scrubbing_delay_models():
         float(row[fields.index("Model; chain length 12 with overall timeout 12secs (corrected; seconds)")]) for row in
         rows]
     values_model_bind9_18_4_L = [float(row[fields.index("Model; chain length 17 (corrected; seconds)")]) for row in
-                                     rows]
+                                 rows]
 
     # Implementation values
     # values_u1_10 = [float(row[fields.index("Unbound 1.10.0 (to example.com nameserver)")]) for row in rows]
@@ -877,14 +873,13 @@ def plot_sub_cname_scrubbing_delay_models():
     cname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 25)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         'Duration of queries sent to victim nameserver with Sub+CNAME scrubbing+Delay (slow DNS) \n Fixed values : {vars}\n and {qmin}'.format(
@@ -894,8 +889,8 @@ def plot_sub_cname_scrubbing_delay_models():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_cname_scrubbing_delay_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_cname_scrubbing_delay_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -903,8 +898,6 @@ def plot_sub_cname_scrubbing_delay_models():
     # plot_path = "fig_sub_ccv_delay_L_resolver_model.jpg"
     # if os.path.exists(plot_path):
     #     os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -917,7 +910,7 @@ def plot_sub_cname_scrubbing_delay_models():
 
 
 def plot_sub_cname_scrubbing_delay():
-    '''Recreates the figure 7.8'''
+    """Recreates the figure 7.8"""
 
     attack_folder = SubqueriesCCV_Delay().folder
     list_markers = itertools.cycle(("x", "d",))  # "p","*","s", "o", "."))
@@ -993,14 +986,13 @@ def plot_sub_cname_scrubbing_delay():
     cname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 25)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         'Duration of queries sent to victim nameserver with\n Sub+CNAME scrubbing+Delay (slow DNS) \n Fixed values : {vars} and {qmin}'.format(
@@ -1011,8 +1003,8 @@ def plot_sub_cname_scrubbing_delay():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_cname_scrubbing_delay"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_cname_scrubbing_delay"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -1026,8 +1018,8 @@ def plot_sub_cname_scrubbing_delay():
     plt.close()
     del fig
 
-def plot_sub_cname_scrubbing_qmin_delay():
 
+def plot_sub_cname_scrubbing_qmin_delay():
     QMIN_DEACTIVATED = False
     qmin_folder = "qmin_disabled" if QMIN_DEACTIVATED else "qmin_enabled"
     attack_folder = SubqueriesCCVQMINA_Delay().folder + "/" + qmin_folder
@@ -1104,13 +1096,13 @@ def plot_sub_cname_scrubbing_qmin_delay():
     cname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 300)
 
-    vars = "CNAME_length={}".format(str(cname_chain_length))  
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))
     ax.set_title(
         'Duration of queries sent to victim nameserver with\n Sub+CNAME scrubbing+Delay (slow DNS) \n Fixed values : {vars} and {qmin}'.format(
             vars=vars, qmin=text_plot_qmin(QMIN_DEACTIVATED)), fontsize=11)
@@ -1120,8 +1112,8 @@ def plot_sub_cname_scrubbing_qmin_delay():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_cname_scrubbing_delay"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_cname_scrubbing_delay"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -1133,6 +1125,7 @@ def plot_sub_cname_scrubbing_qmin_delay():
 
     plt.close()
     del fig
+
 
 # SUBQUERIES UNCHAINED DNAME
 def plot_sub_unchained_dname_models():
@@ -1180,7 +1173,7 @@ def plot_sub_unchained_dname_models():
     cname_chain_length = 17
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 110)
@@ -1195,13 +1188,11 @@ def plot_sub_unchained_dname_models():
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
     attack_folder = SubqueriesUnchainedDNAME().folder
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_dname_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_dname_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -1259,7 +1250,7 @@ def plot_sub_dname_scrubbing_models():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 400)
@@ -1274,8 +1265,8 @@ def plot_sub_dname_scrubbing_models():
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
     attack_folder = SubqueriesDNAME_Chain_validation().folder
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_dname_scrubbing_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_dname_scrubbing_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
@@ -1334,13 +1325,13 @@ def plot_sub_dname_scrubbing_delays_models():
     cname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 55)
 
-    vars = "DNAME/CNAME_length={}".format(str(cname_chain_length)) 
+    vars = "DNAME/CNAME_length={}".format(str(cname_chain_length))
     ax.set_title(
         'Duration of queries sent to victim nameserver\n with Sub+DNAME scrubbing+Delay (slow DNS)\n Fixed values : {vars} and {qmin}; D=DNAME, C=CNAME'.format(
             vars=vars, qmin=text_plot_qmin(QMIN_DEACTIVATED)), fontsize=11)
@@ -1350,13 +1341,11 @@ def plot_sub_dname_scrubbing_delays_models():
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
     attack_folder = SubqueriesDNAMEChainVal_Delay().folder
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_dname_scrubbing_delay_models"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_dname_scrubbing_delay_models"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -1393,7 +1382,6 @@ def plot_sub_unchained_dname():
     values_model_bind = read_to_float(
         attack_folder + "/bind9_18_4_no_chain_val/results/measurements/res_00labels_17dnamelength.txt")
 
-
     j_file = DATA_J_FOLDER + "subquery+DNAME/data.csv"
     values_u1_10 = read_j_files(j_file, 'unbound-1.10.0', 'y', 'x')
     values_u1_16 = read_j_files(j_file, 'unbound-1.16.0', 'y', 'x')
@@ -1411,7 +1399,7 @@ def plot_sub_unchained_dname():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 110)
@@ -1426,12 +1414,12 @@ def plot_sub_unchained_dname():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_dname"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_dname"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
-        
+
     plt.legend(implementation_names)
     print(list_list_values)
 
@@ -1485,7 +1473,7 @@ def plot_sub_dname_scrubbing():
                 rows.append(row)
 
         rows = rows[0:10]
-        
+
         # Real implementation values
         values_u1_10 = [float(row[fields.index("Unbound 1.10.0 with IPv6 disabled (to example.com nameserver)")]) for
                         row in rows]
@@ -1506,12 +1494,12 @@ def plot_sub_dname_scrubbing():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 10 + 1)
     ax.set_ylim(0, 200)
-    
-    vars = "DNAME_length={}".format(str(dname_chain_length)) 
+
+    vars = "DNAME_length={}".format(str(dname_chain_length))
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+DNAME scrubbing \n Fixed values : {vars} and {qmin}'.format(
             vars=vars, qmin=text_plot_qmin(QMIN_DEACTIVATED)), fontsize=11)
@@ -1520,8 +1508,8 @@ def plot_sub_dname_scrubbing():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_dname_scrubbing"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_dname_scrubbing"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -1600,7 +1588,7 @@ def plot_sub_dname_scrubbing_delay():
     dname_chain_length = 17
     nb_labels = 0
 
-    ax.set_xlabel("Artificial delay (ms or time unit)", fontsize=12)
+    ax.set_xlabel(LABEL_DELAY_MS_OR_TIME_UNIT, fontsize=12)
     ax.set_ylabel('Duration of the query (s)', fontsize=12)
 
     ax.set_xlim(0, 1400)
@@ -1616,8 +1604,8 @@ def plot_sub_dname_scrubbing_delay():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_dname_scrubbing_delay"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_dname_scrubbing_delay"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path_jpg):
         os.remove(plot_path_jpg)
@@ -1685,7 +1673,6 @@ def main():
     #
     # plot_sub_dname_scrubbing_delay()
 
-
     QMIN_DEACTIVATED = True
 
     # plot_sub_unchained_cname()
@@ -1739,13 +1726,12 @@ def plot_subquery_unchained_cname_qminenabled():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 110)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length)) 
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+Unchained with CNAME \n Fixed values : {vars}and {qmin}'.format(
             vars=vars, qmin=text_plot_qmin(QMIN_DEACTIVATED)), fontsize=11)
@@ -1754,13 +1740,11 @@ def plot_subquery_unchained_cname_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_cname"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_cname"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -1813,11 +1797,10 @@ def plot_subquery_unchained_dname_qminenabled():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 210)
-
 
     vars = "DNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
     ax.set_title(
@@ -1828,13 +1811,11 @@ def plot_subquery_unchained_dname_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_unchained_dname"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_unchained_dname"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -1847,8 +1828,8 @@ def plot_subquery_unchained_dname_qminenabled():
 
 
 def plot_subquery_scrubbing_cname_qminenabled():
-    '''Plots my models versus the real implementations.
-      With QMIN enabled but not used'''
+    """Plots my models versus the real implementations.
+      With QMIN enabled but not used"""
 
     # attack_folder = "sub-unchained-cname"
     QMIN_DEACTIVATED = False
@@ -1887,13 +1868,12 @@ def plot_subquery_scrubbing_cname_qminenabled():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 410)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title(
         '# Queries sent to victim nameserver with Sub+Scrubbing with CNAME \n Fixed values : {vars}and {qmin}'.format(
@@ -1903,8 +1883,8 @@ def plot_subquery_scrubbing_cname_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_scrubbing_cname"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrubbing_cname"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
@@ -1944,7 +1924,8 @@ def plot_sub_scrub_cname_qmin():
             attack_folder + "/unbound1_16_0_cname_bypassed/results/measurements/res_10labels_17cnamelength.txt")
         values_model_pdns4_7 = read_to_float(
             attack_folder + "/powerDNS4_7_0/results/measurements/res_10labels_17cnamelength.txt")
-        values_model_bind = read_to_float(attack_folder + "/bind9_18_4/results/measurements/res_10labels_17cnamelength.txt")
+        values_model_bind = read_to_float(
+            attack_folder + "/bind9_18_4/results/measurements/res_10labels_17cnamelength.txt")
 
         if QMIN_DEACTIVATED:
             spec_folder = ""
@@ -1967,14 +1948,14 @@ def plot_sub_scrub_cname_qmin():
         nb_labels = 0
 
         ax.set_xlabel("Number of delegations", fontsize=12)
-        ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+        ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
         ax.set_xlim(0, 11)
         ax.set_ylim(0, 1800)
 
         # fixed_vars = {"ns_del" : "#Del={}".format(str(ns_del)), "cname_chain_length" : "CNAME_length={}".format(str(cname_chain_length)), "nb_labels" : "#Labels={}".format(str(nb_labels))}
         # fixed = ["CNAME_length={}".format(str(cname_chain_length)), "#Labels={}".format(str(nb_labels))]
-        vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+        vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
         # RElated to the previous : find from the filename what are the fixed attributes
         ax.set_title(
             '# Queries sent to victim nameserver with Sub+Scrubbing with CNAME \n Fixed values : {vars} and {qmin}'.format(
@@ -1984,8 +1965,8 @@ def plot_sub_scrub_cname_qmin():
         for list_values in list_list_values:
             ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-        check_folder_exists(attack_folder + "/comparison/")
-        plot_path = attack_folder + "/comparison/" + "fig_sub_scrub_cname_" + qmin_folder
+        check_folder_exists(attack_folder + FOLDER_COMPARISON)
+        plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrub_cname_" + qmin_folder
         plot_path_jpg = plot_path + ".jpg"
         if os.path.exists(plot_path):
             os.remove(plot_path)
@@ -1998,6 +1979,7 @@ def plot_sub_scrub_cname_qmin():
 
         plt.close()
         del fig
+
 
 def plot_sub_scrub_dname_qmin():
     '''Plots my models versus the real implementations.
@@ -2024,7 +2006,8 @@ def plot_sub_scrub_dname_qmin():
             attack_folder + "/unbound1_16_0_cname_bypassed/results/measurements/res_10labels_17dnamelength.txt")
         values_model_pdns4_7 = read_to_float(
             attack_folder + "/powerDNS4_7_0/results/measurements/res_10labels_17dnamelength.txt")
-        values_model_bind = read_to_float(attack_folder + "/bind9_18_4/results/measurements/res_10labels_17dnamelength.txt")
+        values_model_bind = read_to_float(
+            attack_folder + "/bind9_18_4/results/measurements/res_10labels_17dnamelength.txt")
 
         if QMIN_DEACTIVATED:
             spec_folder = ""
@@ -2049,7 +2032,7 @@ def plot_sub_scrub_dname_qmin():
         nb_labels = 0
 
         ax.set_xlabel("Number of delegations", fontsize=12)
-        ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+        ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
         ax.set_xlim(0, 11)
         ax.set_ylim(0, 1800)
@@ -2066,8 +2049,8 @@ def plot_sub_scrub_dname_qmin():
         for list_values in list_list_values:
             ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-        check_folder_exists(attack_folder + "/comparison/")
-        plot_path = attack_folder + "/comparison/" + "fig_sub_scrub_dname_" + qmin_folder
+        check_folder_exists(attack_folder + FOLDER_COMPARISON)
+        plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrub_dname_" + qmin_folder
         plot_path_jpg = plot_path + ".jpg"
         if os.path.exists(plot_path):
             os.remove(plot_path)
@@ -2080,7 +2063,6 @@ def plot_sub_scrub_dname_qmin():
 
         plt.close()
         del fig
-
 
 
 def plot_subquery_scrubbing_dname_qminenabled():
@@ -2125,11 +2107,10 @@ def plot_subquery_scrubbing_dname_qminenabled():
     nb_labels = 0
 
     ax.set_xlabel("Number of delegations", fontsize=12)
-    ax.set_ylabel('# queries sent to victim nameserver', fontsize=12)
+    ax.set_ylabel(LABEL_NB_QUERIES_SENT_TO_VICTIM, fontsize=12)
 
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 410)
-
 
     vars = "DNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
     ax.set_title(
@@ -2140,13 +2121,11 @@ def plot_subquery_scrubbing_dname_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_scrubbing_dname"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrubbing_dname"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
-
-
 
     plt.legend(implementation_names)
     print(list_list_values)
@@ -2204,8 +2183,7 @@ def plot_subquery_scrubbing_cname_delay_qminenabled():
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 1500)
 
-
-    vars = "CNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
+    vars = FOLDER_COMPARISON.format(str(cname_chain_length))  # vars = ", ".join(fixed)
     # RElated to the previous : find from the filename what are the fixed attributes
     ax.set_title('Duration of queries with slowDNS + CNAME \n Fixed values : {vars} and {qmin}'.format(vars=vars,
                                                                                                        qmin=text_plot_qmin(
@@ -2217,8 +2195,8 @@ def plot_subquery_scrubbing_cname_delay_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_scrubbing_cname_delay"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrubbing_cname_delay"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)
@@ -2279,7 +2257,6 @@ def plot_subquery_scrubbing_dname_delay_qminenabled():
     ax.set_xlim(0, 1400)
     ax.set_ylim(0, 1500)
 
-
     vars = "DNAME_length={}".format(str(cname_chain_length))  # vars = ", ".join(fixed)
     ax.set_title(
         'Duration of queries with slowDNS + CNAME with DNAME \n Fixed values : {vars} and {qmin}'.format(vars=vars,
@@ -2291,8 +2268,8 @@ def plot_subquery_scrubbing_dname_delay_qminenabled():
     for list_values in list_list_values:
         ax.plot(x, list_values, color=next(list_colors), linestyle=next(list_linestyle), marker=next(list_markers))
 
-    check_folder_exists(attack_folder + "/comparison/")
-    plot_path = attack_folder + "/comparison/" + "fig_sub_scrubbing_dname_delay"
+    check_folder_exists(attack_folder + FOLDER_COMPARISON)
+    plot_path = attack_folder + FOLDER_COMPARISON + "fig_sub_scrubbing_dname_delay"
     plot_path_jpg = plot_path + ".jpg"
     if os.path.exists(plot_path):
         os.remove(plot_path)

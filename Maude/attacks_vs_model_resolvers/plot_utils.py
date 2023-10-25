@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-import matplotlib.pyplot as plt
+
 
 
 def save_to_svg(plt, filename):

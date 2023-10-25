@@ -9,10 +9,12 @@ from model_attack_file import *
 import utils
 import plot_utils
 
+
 implementation_name = "GENERAL"
 configWorkBudget = "5000"
 FOLDER_RESULTS = "creation_idns/" + "results/"
-FOLDER_RESULTS_MEASUREMENTS = FOLDER_RESULTS + "measurements/"
+FOLDER_MEASUREMENTS = "measurements/"
+FOLDER_RESULTS_MEASUREMENTS = FOLDER_RESULTS + FOLDER_MEASUREMENTS
 
 
 def create_plots(list_values, filename, implementation, variant, folder_results):
@@ -194,7 +196,7 @@ def main():
 
         for variant in variants:
             FOLDER_RESULTS = variant.folder + "/" + implementation.folder + "/results/"
-            FOLDER_RESULTS_MEASUREMENTS = FOLDER_RESULTS + "measurements/"
+            FOLDER_RESULTS_MEASUREMENTS = FOLDER_RESULTS + FOLDER_MEASUREMENTS
             utils.check_folder_exists(FOLDER_RESULTS_MEASUREMENTS)
 
             for filename in os.listdir(FOLDER_RESULTS_MEASUREMENTS):
@@ -231,7 +233,7 @@ def main_combined():
         implementation_names = [imp.folder for imp in implementations]
 
         FOLDERS_RESULTS = [variant.folder + "/" + "{}/results/".format(name) for name in implementation_names]
-        FOLDERS_RESULTS_MEASUREMENTS = [f + "measurements/" for f in FOLDERS_RESULTS]
+        FOLDERS_RESULTS_MEASUREMENTS = [f + FOLDER_MEASUREMENTS for f in FOLDERS_RESULTS]
         for i in range(0, len(implementations)):
             utils.check_folder_exists(FOLDERS_RESULTS[i])
             utils.check_folder_exists(FOLDERS_RESULTS_MEASUREMENTS[i])

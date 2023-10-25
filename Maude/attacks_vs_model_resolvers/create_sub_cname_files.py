@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-import os
 
 import re
 import time
-from utils import check_folder_exists, check_subqueries, check_number_labels, intermediary_nsdelegations_to_target, check_cname_chain_length, target_cname_chain, run_file, cname_chain_val_delay, simple_cname_chain
+
 import utils
-from model_resolver import *
 from model_attack_file import SubqueriesUnchainedCNAME
+from model_resolver import *
+from utils import check_folder_exists, intermediary_nsdelegations_to_target, run_file, simple_cname_chain
 from watcher import Watcher
 
 """This file creates and runs the attack Subqueries + Unchained, also called
 Parallel NS + Unchained."""
+
+PATH_TO_MAIN_DIR = "../../../../.."
 
 
 def main():
 
     scrubbing = False
     # QMIN_DEACTIVATED = False
-    PATH_TO_MAIN_DIR = "../../../../.."
 
     qmin_folder = "qmin_disabled" if qmin_deactivated else "qmin_enabled"
 
@@ -125,5 +126,5 @@ if __name__ == "__main__":
     main()
 
     # QMIN enabled
-    #qmin_deactivated = False
-    #main()
+    # qmin_deactivated = False
+    # main()

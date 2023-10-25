@@ -4,27 +4,26 @@ import re
 import time
 
 import utils
-from model_attack_file import CCV, CCV_QMIN, SubqueriesCCV_Delay, CCV_Delay, CCV_QMIN_Delay
+from model_attack_file import CCV, CCV_QMIN, CCV_Delay, CCV_QMIN_Delay
 from model_resolver import *
-from utils import check_folder_exists, intermediary_nsdelegations_to_target, \
-    target_cname_chain, run_file, cname_chain_val_delay, standalone_cname_scrubbing_delay
+from utils import check_folder_exists, run_file
 from watcher import Watcher
 
 """This file creates and runs files for the attacks Scrubbing +CNAME +QMIN delay.
 Those are also called CNAME CHAIN VALIDATION + DELAY."""
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
+PATH_TO_MAIN_DIR = "../../../../.."
+
+
 def main():
-
     scrubbing = True
-
-    PATH_TO_MAIN_DIR = "../../../../.."
 
     qmin_folder = "qmin_disabled" if qmin_deactivated else "qmin_enabled"
 
-    variants = [CCV_QMIN(), CCV_Delay(),CCV_QMIN_Delay()]  #  [CCV(), CCV_QMIN(), CCV_Delay(), CCV_QMIN_Delay()]
+    variants = [CCV_QMIN(), CCV_Delay(), CCV_QMIN_Delay()]  # [CCV(), CCV_QMIN(), CCV_Delay(), CCV_QMIN_Delay()]
 
-    RANGE_CNAME_LENGTH = range(1, 20+1)
+    RANGE_CNAME_LENGTH = range(1, 20 + 1)
     RANGE_NS_DELEGATIONS = [1]
     RANGE_NS_DELAY = range(0, 1700, 200)
 
@@ -42,11 +41,13 @@ def main():
                                Bind9_18_4()]
 
         elif type(variant) is CCV_QMIN_Delay:
-            resolver_models = [utils.which_powerdns(scrubbing, qmin_deactivated), Unbound1_10_0_CNAME_BYPASSED(), Unbound1_16_0_CNAME_BYPASSED(),
+            resolver_models = [utils.which_powerdns(scrubbing, qmin_deactivated), Unbound1_10_0_CNAME_BYPASSED(),
+                               Unbound1_16_0_CNAME_BYPASSED(),
                                Bind9_18_4()]
             RANGE_LABELS = [10]
         elif type(variant) is CCV_QMIN:
-            resolver_models = [utils.which_powerdns(scrubbing, qmin_deactivated), Unbound1_10_0_CNAME_BYPASSED(), Unbound1_16_0_CNAME_BYPASSED(),
+            resolver_models = [utils.which_powerdns(scrubbing, qmin_deactivated), Unbound1_10_0_CNAME_BYPASSED(),
+                               Unbound1_16_0_CNAME_BYPASSED(),
                                Bind9_18_4()]
             RANGE_LABELS = [10]
 
@@ -106,12 +107,13 @@ def main():
 
                             # Create the query from the client and the cname chain target to put in the target
                             query_from_client, cname_chain_in_target = \
-                                utils.standalone_cname_scrubbing_delay(nb_labels=labels, cname_chain_length=cname_chain_length -1, target_address="'target-ans . 'com . root")
+                                utils.standalone_cname_scrubbing_delay(nb_labels=labels,
+                                                                       cname_chain_length=cname_chain_length - 1,
+                                                                       target_address="'target-ans . 'com . root")
 
                             # There is no intermediary
                             whole = variant.whole_file(PATH_TO_MAIN_DIR, resolver_model, qmin_deactivated, ns_delay,
                                                        query_from_client, cname_chain_in_target)
-
 
                             # Write the text in a file
                             with open(file_path, "w+") as file:
@@ -138,7 +140,7 @@ def main():
                             # First create the path of the files that will be executed with the initial parameters
                             # those can be modified afterwards to satisfy to the limit of the resolvers
                             path = format(original_ns_del, '02d') + "nsdel_" + format(cname_chain_length,
-                                                                             '02d') + "cnamelength_" + \
+                                                                                      '02d') + "cnamelength_" + \
                                    format(original_labels, '02d') + "labels" + ".maude"
                             print("Path of the file to be executed : " + path)
 
@@ -154,9 +156,12 @@ def main():
                             labels = original_labels
 
                             # Create the records leading to the target
-                            query_from_client, cname_chain_in_target = utils.standalone_cname_scrubbing_delay(nb_labels=labels,cname_chain_length=cname_chain_length-1, target_address="'target-ans . 'com . root")
+                            query_from_client, cname_chain_in_target = utils.standalone_cname_scrubbing_delay(
+                                nb_labels=labels, cname_chain_length=cname_chain_length - 1,
+                                target_address="'target-ans . 'com . root")
 
-                            whole = variant.whole_file(PATH_TO_MAIN_DIR, resolver_model, qmin_deactivated,query_from_client, cname_chain_in_target)
+                            whole = variant.whole_file(PATH_TO_MAIN_DIR, resolver_model, qmin_deactivated,
+                                                       query_from_client, cname_chain_in_target)
 
                             # # Write the text in a file
                             with open(file_path, "w+") as file:

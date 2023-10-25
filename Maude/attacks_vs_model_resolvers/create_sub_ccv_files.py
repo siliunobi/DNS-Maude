@@ -10,20 +10,21 @@ from utils import check_folder_exists, intermediary_nsdelegations_to_target, \
     target_cname_chain, run_file, cname_chain_val_delay
 from watcher import Watcher
 
+TARGET_ANS = "'target-ans . 'com . root"
+
 """This file creates and runs files for the attacks Subqueries+CCV and Subqueries
 + CCV + delay. Those are also called Parallel NS + Scrubbing and slowDNS +
 scrubbing."""
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+PATH_TO_MAIN_DIR = "../../../../.."
+
 
 def main():
     scrubbing = True
 
-
-    PATH_TO_MAIN_DIR = "../../../../.."
-
     qmin_folder = "qmin_disabled" if qmin_deactivated else "qmin_enabled"
 
-    variants = [SubqueriesCCV()] #[SubqueriesCCVQMINA_Delay()]  # [SubqueriesCCVQMINA(), SubqueriesCCVQMINA_Delay()]#[SubqueriesCCVQMINA(), SubqueriesCCV_Delay(), SubqueriesCCV()]
+    variants = [SubqueriesCCV()] # [SubqueriesCCVQMINA_Delay()]  # [SubqueriesCCVQMINA(), SubqueriesCCVQMINA_Delay()]#[SubqueriesCCVQMINA(), SubqueriesCCV_Delay(), SubqueriesCCV()]
 
     RANGE_CNAME_LENGTH = [17]  # range(17,18)
     RANGE_NS_DELEGATIONS = range(1, 11)
@@ -107,10 +108,10 @@ def main():
                                 query_from_client, cname_chain_in_target = \
                                 cname_chain_val_delay(nb_chains=1,
                                                       cname_chain_length=cname_chain_length - 1,
-                                                      target_address="'target-ans . 'com . root")
+                                                      target_address=TARGET_ANS)
                             elif type(variant) is SubqueriesCCVQMINA_Delay:
                                 query_from_client, cname_chain_in_target = \
-                                utils.standalone_cname_scrubbing_delay(nb_labels=labels,cname_chain_length=cname_chain_length,target_address="'target-ans . 'com . root", nb_delegations=1)
+                                utils.standalone_cname_scrubbing_delay(nb_labels=labels, cname_chain_length=cname_chain_length, target_address=TARGET_ANS, nb_delegations=1)
 
 
                             print(
@@ -161,7 +162,7 @@ def main():
                             # Create the records leading to the target
                             ns_records_text_in_intermediary, ns_records_to_target = intermediary_nsdelegations_to_target(
                                 nb_delegations=ns_del, address_to_be_delegated="'del . 'intermediary . 'com . root",
-                                target_address="'target-ans . 'com . root",nb_labels=labels)
+                                target_address=TARGET_ANS,nb_labels=labels)
 
                             # print(ns_records_text_in_intermediary)
                             target_records = target_cname_chain(

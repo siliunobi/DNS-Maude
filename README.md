@@ -37,7 +37,7 @@ By linking one (newly created) folder to one within the docker, we can simply co
 	
 #### Testbed
 Moreover, the script will carry out the ***testbed*** experiments as well by :
-1. Installing Go (If a Go version is already installed, it won't do anything). NOTE: the Go versions the testbed was run with are 1.18 and 1.20.5, there is no guarantee the project can run correctly with other versions.
+1. Installing Go (If a Go version is already installed, it won't do anything). NOTE: the Go versions the testbed was run with are `1.18` and `1.20.5`, there is no guarantee the project can run correctly with other versions. We recommend using `1.20.5`.
 2. Setting up the environment variables and permissions
 3. Downloading and installing the necessary GO packages 
 4. Running the experiments

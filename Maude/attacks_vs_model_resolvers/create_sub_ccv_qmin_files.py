@@ -9,8 +9,10 @@ import utils
 """"This file creates the attack Subqueries + CNAME chain validation + QMIN.
     It can also be called Parallel NS + CNAME scrubbing + QMIN."""
 
+PATH_TO_MAIN_DIR = "../../../../.."
+
+
 def main():
-    PATH_TO_MAIN_DIR = "../../../../.."
     scrubbing = True
 
     # attack_folder = "sub-ccv-qmin-a/"
@@ -75,8 +77,7 @@ def main():
                         target_records = utils.target_cname_chain(ns_records_to_target=ns_records_target,
                                                             chain_length=cname_chain_length - 1, nb_labels=labels)
 
-                        whole = variant.whole_file(PATH_TO_MAIN_DIR, resolver_model, qmin_deactivated, target_records,ns_records_text)
-
+                        whole = variant.whole_file(PATH_TO_MAIN_DIR, resolver_model, qmin_deactivated, target_records, ns_records_text)
 
                         # Write the text in a file
                         with open(file_path, "w+") as file:

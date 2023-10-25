@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import utils
+from Maude.attacks_vs_model_resolvers.utils import check_folder_exists
 from create_sub_ccv_qmin_files import *
 
 
