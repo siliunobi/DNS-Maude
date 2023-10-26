@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import os
-import subprocess
 import re
 import string
+import subprocess
+
 import model_resolver
 
-# May depend on the system running maude, another possibility is simply "maude"
-MAUDE = '/maude/maude.linux64'
-
+# May depend on the system running maude
+MAUDE = "maude"  # /usr/bin/maude/maude.linux64
 ADDRESS_INTERMEDIARY = "'intermediary . 'com . root"
 TARGET_ANS = "'target-ans . 'com . root"
 FAKE_LABEL = "'fake"
+
 
 def check_folder_exists(folder_name):
     """Check if the folder exists, if not create it. Takes care of intermediary folders."""
@@ -79,17 +80,15 @@ def check_variables(labels, chain_length, nb_delegations, chain_type, resolver_m
 
 
 def run_file(maude_file):
-    """Run the file with maude and return the ouput summary."""
-    cmd = [MAUDE] + [maude_file]
+    """Run the file with maude and return the output summary."""
 
-    p = subprocess.Popen(cmd,
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         )
+    # Tricky to find the path of maude using its alias, the easier would have been '/usr/bin/maude/maude.linux64'
 
-    out_raw, err_raw = p.communicate(b"quit\n")
-    out = out_raw.decode()
-    err = err_raw.decode()
-    print(cmd)
+    cmd = ['/bin/bash', '-i', '-c'] + [MAUDE + " " + maude_file]
+    # Input containing carriage return is needed to artificially trigger the command
+    p = subprocess.run(cmd, check=True, capture_output=True, text=True, input="quit\n")
+    out = p.stdout
+
 
     index = out.find("rewrite in TEST : msg")
     if index == -1:

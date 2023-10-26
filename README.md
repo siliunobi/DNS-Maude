@@ -7,8 +7,28 @@ This repository contains the artifact for reproducing the results shown in the s
 This setup (entire repo) was tested on a macOS system (10.15 Catalina). Currently, this is the only OS where both the Maude docker and the testbed work.
 The Maude docker (`Dockerfile-maude`) has been tested successfully as well on Windows (10) and Linux (Ubuntu 20.x).
 
-Docker will be used to run and execute the Maude experiments and the actual real implementation tests (located in a framework called `testbed`). It can as well run the plotting functions to get plots similar to the ones of the paper.
+Docker will be used to run and execute the Maude experiments and the actual real implementation tests (located in a framework called `testbed`).
+It can as well run the plotting functions to get plots similar to the ones of the paper.
 
+Four files are required for the setup:
+- [script.sh](script.sh) : installs Docker and takes care of the setup, runs also the Maude docker, testbed and plot.py
+- [Dockerfile-maude](Dockerfile-maude): environment setup for Maude
+- [script-maude-allOSes.sh](script-maude-allOSes.sh): script to run Maude experiment (within Docker or not, see below)
+- [plot.py](plot.py): creates plots from the retrieved results
+
+
+## How to run
+Firstly, we have to download the zipped folder that contains some scripts and the actual code for the Maude project and the testbed.
+
+Within that (root) folder, we simply have to run the following command :
+```bash
+bash script.sh
+```
+(or `.\script.sh`) that is going to import necessary dependencies, packages and files, and going to run experiments both in Maude (model) and in a testbed (real-implementation).
+
+More precise steps that this script is fulfilling are explained below.
+
+#### Docker
 The file `script.sh` should install Docker and Docker Compose on the session. If you already have Docker installed, please comment lines 7-26.
 In this case, do not forget to activate or have the Docker service running when launching the script.
 
@@ -16,13 +36,9 @@ Alternatively, you can also install Docker manually :
 1. Install [Docker](https://docs.docker.com/get-docker/)
 2. Install [docker-compose](https://docs.docker.com/compose/install/linux/)
 
-Note: a `requirements.txt` is also present in the root folder, in case anyone wants to run the experiments and the plotting file `plot.py` separately but directly in the folder.
-	
-## How to run + some explanations
-Firstly, we have to download the zipped folder that contains some scripts and the actual code for the Maude project and the testbed.
+Note: a `requirements.txt` is also present in the root folder, in case anyone wants to run the experiments and the plotting file `plot.py` separately but directly in the folder using a virtual environment.
+A similar file is located within `Maude` folder.
 
-Within that folder, we simply have to run the following command : bash `script.sh` or `.\script.sh` that is going to import necessary dependencies, packages and files, and going to run experiments both in Maude (model) and in a testbed (real-implementation).
-More precise steps that this script is fulfilling are explained below.
 
 #### Maude
 
@@ -34,7 +50,11 @@ Regarding the ***Maude*** part, the script will take care of
 5. Retrieving the results
 	
 By linking one (newly created) folder to one within the docker, we can simply copy the results of the experiments to the docker folder, and it will automatically "import" its content to the folder outside Docker (in this case, `results`).
-	
+
+__Note__: if one created the appropriate environment on his/her machine without using Docker, running `script-maude-allOSes.sh`
+will execute the Maude experiments and copy the results into `/results`. We can also comment all the lines starting with `cp -R`
+to avoid duplicating the data (This is necessary if using Docker).
+
 #### Testbed
 Moreover, the script will carry out the ***testbed*** experiments as well by :
 1. Installing Go (If a Go version is already installed, it won't do anything). NOTE: the Go versions the testbed was run with are `1.18` and `1.20.5`, there is no guarantee the project can run correctly with other versions. We recommend using `1.20.5`.
@@ -104,18 +124,7 @@ Inside the `script.sh` file, the actual code fulfilling steps 1-3 (installing Go
 Following the README of the `testbed` folder, one can also mount its own attacks using real resolvers software.
 
 
-### Settings other than the ones from the original project
-Modified in utils.py : 
-	`MAUDE = '/maude/maude.linux64'`
-
-Modified in create_ccv_files.py:
-	`variants = [CCV_QMIN(), CCV_Delay(), CCV_QMIN_Delay()]`
-	--- Here we can trigger Cname scrubbing + QMIN, CNAME Scrubbing + Delay, CNAME Scrubbing + QMIN + Delay
-
-Modified in `create_sub_cname_files.py`:
-	In main(): simply remove `qmin_deactived=False; main()`  since we have to disable QMIN for most of the experiment
-
-### Strategies to expand portability
+## Strategies to expand portability
 
 So far the only operating system that can entirely run our setup and the experiments is macOS version `10.15`.
 We tried other strategies to port the projects to other OSes such as `dind` ("docker-in-docker"), a docker that will create dockers for Maude and the testbed, or
