@@ -4,13 +4,13 @@ This repository contains the artifact for reproducing the results shown in the s
 
 ## Setup
 
-This setup (entire repo) was tested on a macOS system (10.15 Catalina). Currently, this is the only OS where both the Maude docker and the testbed work.
+This artifact was successfully tested on a macOS system (10.15 Catalina). Currently, this is the only OS where both the Maude docker and the testbed work.
 The Maude docker (`Dockerfile-maude`) has been tested successfully as well on Windows (10) and Linux (Ubuntu 20.x).
 
 Docker will be used to run and execute the Maude experiments and the actual real implementation tests (located in a framework called `testbed`).
 It can as well run the plotting functions to get plots similar to the ones of the paper.
 
-Four files are required for the setup:
+Four main files are required for the setup:
 - [script.sh](script.sh) : installs Docker and takes care of the setup, runs also the Maude docker, testbed and plot.py
 - [Dockerfile-maude](Dockerfile-maude): environment setup for Maude
 - [script-maude-allOSes.sh](script-maude-allOSes.sh): script to run Maude experiment (within Docker or not, see below)
@@ -26,8 +26,17 @@ bash script.sh
 ```
 (or `.\script.sh`) that is going to import necessary dependencies, packages and files, and going to run experiments both in Maude (model) and in a testbed (real-implementation).
 
-More precise steps that this script is fulfilling are explained below.
+This script uses Docker as container for the Maude part. More precise steps that this script is fulfilling are explained below in the subsections.
 
+## How to run (separately)
+Assuming we want to run part of the artifact separately, it is possible by running one of those 4 files:
+1. `setup.sh` : download and install necessary packages, create the docker container, and set paths to folders and executables
+2. `script-maude-allOSes.sh`: run the Maude experiments. Normally called together with Docker, can also be run on its own if [Maude 2.7.1](https://maude.cs.illinois.edu/w/index.php/All_Maude_2_versions), `ENV` variables, paths are defined and if folder name containing the Maude experiments code is modified
+3. `script-testbed.sh`: run the testbed experiments (required Docker installed on the machine)
+4. `script-plot.py`: plot the results
+
+
+## More info on `script.sh` and requirements
 #### Docker
 The file `script.sh` should install Docker and Docker Compose on the session. If you already have Docker installed, please comment lines 7-26.
 In this case, do not forget to activate or have the Docker service running when launching the script.
@@ -41,6 +50,7 @@ A similar file is located within `Maude` folder.
 
 
 #### Maude
+To install Maude and environment, see[ Maude/README.md](Maude/README.md)
 
 Regarding the ***Maude*** part, the script will take care of 
 1. Installing Maude
@@ -53,7 +63,7 @@ By linking one (newly created) folder to one within the docker, we can simply co
 
 __Note__: if one created the appropriate environment on his/her machine without using Docker, running `script-maude-allOSes.sh`
 will execute the Maude experiments and copy the results into `/results`. We can also comment all the lines starting with `cp -R`
-to avoid duplicating the data (This is necessary if using Docker).
+to avoid duplicating the data (those were necessary if using Docker).
 
 #### Testbed
 Moreover, the script will carry out the ***testbed*** experiments as well by :

@@ -1,9 +1,9 @@
 # Description of the models in Maude
 
-  The formal framework allows to test the expected behaviour of DNS servers and actors that follow closely some RFCs.
+  The formal framework allows to test the expected behaviour of DNS servers and actors that follow closely a specific set of RFCs.
   As a way to expand this testing to englobe "more realistic" behaviour of resolvers, we create Maude models of such resolvers with some of their known parameters.
 
-  Therefore, in order to approximately predict the results of the experiments, we have to model the resolver implementations in Maude. The resulting AFs are useful to help comparing the predicted values and the actual values of real resolver implementations (for instance generated via the testbed).
+  Therefore, in order to predict the results of the experiments, we need to model the resolver implementations in Maude. The resulting AFs are useful to help comparing the predicted values and the actual values of real resolver implementations (for instance generated via the testbed).
   
 Thus, rather than solely observing the amplification factor of an attack, we can also detect whether there are any discrepancy between the model and the implementation.
   This could give us more hindsight on the reasons why a query resolution acts this way and allow use to identify strange patterns as well limits imposed by the resolvers themselves.
@@ -14,7 +14,7 @@ Thus, rather than solely observing the amplification factor of an attack, we can
   Those generated files will be located inside `[create.../resolver_name/files]` folders, where `...` specifies the type of attack used.
 
   We will then execute those files in Maude. This process outputs each time a summary of the number of messages sent/received, as well as the amplification between the attacker(s)
-  and the victim(s). So far, we will l only keep the first value of the summary (the amplification factor) and add it in `txt` files located
+  and the victim(s). So far, we will only keep the first value of the summary (the amplification factor) and add it in `txt` files located
   in `[create..../resolver_name/results/measurements]`. Depending on which last parameter (ns, cname, labels) we loop on, we consider the other ones as fixed
   and make the amplification factor vary by this very last parameter. The resulting factors will be combined in the file discussed above, with its
   name containing the 2 fixed variables for more clarity.
@@ -25,6 +25,11 @@ Thus, rather than solely observing the amplification factor of an attack, we can
 
 
 # How to run the Maude models of resolver implementations
+
+  If one wants to execute the attack `Subqueries + CNAME Scrubbing`, the following command will execute the attack against all the model resolvers available:
+```bash
+python3 create_sub_ccv_files.py
+```
 
   Example : in the file `create_sub_ccv_files.py`, we have 3 main variables we can play with to tune the attacks : the number of NS delegations, the length of the CNAME chain (in case
     of CNAME chain validation enabled), and the number of labels (useful for QMIN attacks).
