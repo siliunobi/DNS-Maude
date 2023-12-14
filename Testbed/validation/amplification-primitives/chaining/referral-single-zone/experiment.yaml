@@ -1,9 +1,0 @@
-name: "chain-referral-single-zone"
-zonesDir: validation/amplification-primitives/chaining/referral-single-zone/zones
-target: "ns1"
-measure: "volume"
-queries:
-  - zone: "a.zone1.com."
-    record: "A"
-qmin: false
-testbed: validation/amplification-primitives/testbed-multi-zones-single-ns.yaml

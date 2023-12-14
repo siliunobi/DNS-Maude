@@ -1,7 +1,0 @@
-name: "fanout-single-zone-glueless"
-target: "target-com"
-measure: "volume"
-queries:
-  - zone: "trigger.target.com."
-    record: "A"
-qmin: false

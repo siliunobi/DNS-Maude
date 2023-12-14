@@ -1,9 +1,0 @@
-name: "fanout-x-rewrite-single-zone"
-zonesDir: validation/amplification-combinations/fanout-x-rewrite-single-zone/zones
-target: "ns1"
-measure: "volume"
-queries:
-  - zone: "R0CH0.target.com"
-    record: "A"
-qmin: false
-testbed: validation/amplification-combinations/fanout-x-rewrite-single-zone/testbed.yaml

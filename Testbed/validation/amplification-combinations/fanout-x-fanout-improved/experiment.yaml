@@ -1,9 +1,0 @@
-name: "fanout-x-fanout-improved"
-zonesDir: validation/amplification-combinations/fanout-x-fanout-improved/zones
-target: "target"
-measure: "volume"
-queries:
-  - zone: "q.a.com"
-    record: "A"
-qmin: false
-testbed: validation/amplification-combinations/fanout-x-fanout-improved/testbed.yaml

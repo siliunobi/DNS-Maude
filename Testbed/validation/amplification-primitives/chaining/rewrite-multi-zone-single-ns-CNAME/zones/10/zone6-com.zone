@@ -1,9 +1,0 @@
-$TTL 0
-@                       IN      SOA     server.zone6. username.zone6.com. (2006032201 7200 3600 1209600 36000)
-                        IN      NS      ns.zone6.com.
-                        IN      A       1.2.3.4
-ns.zone6.com.         IN      A       172.20.0.5
-www.zone6.com.        IN      CNAME   zone6.com.
-
-; referral chain
-chain.zone6.com.        IN      CNAME      chain.zone7.com.

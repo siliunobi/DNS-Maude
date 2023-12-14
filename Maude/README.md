@@ -1,6 +1,6 @@
 # A Formal Framework for End-to-End DNS Resolution
 
-A Maude formalization of the DNS specification, attacker models for DoS attacks on DNS, a library of correctness/performance properties and automatization of attacks with model resolvers.
+A Maude formalization of the DNS specification, attacker models for DoS attacks on DNS, a library of correctness/performance properties and automation of attacks with model resolvers.
 
 
 ## File Overview

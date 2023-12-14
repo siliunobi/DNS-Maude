@@ -1,8 +1,0 @@
-$TTL 3600
-@                       IN      SOA     server.q.a.com. username.q.a.com. (2006032201 7200 3600 1209600 36000)
-						IN		NS		n01.b.com.
-						IN		NS      n02.b.com.
-n01.b.com.		IN	A     172.20.0.6
-n02.b.com.		IN	A     172.20.0.6
-
-w.q.a.com.     IN  CNAME w.r1.a.com.

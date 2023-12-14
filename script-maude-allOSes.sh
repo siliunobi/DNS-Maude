@@ -12,10 +12,10 @@ cd $FOLDER/attacks_vs_model_resolvers || { echo "Failed to enter 'MAUDE_EXP/atta
 # create_sub_cname_files -> in main: we set qmin to be deactived for the attack Subqueries Unchained CNAME
 python3 ./create_sub_cname_files.py
 cp -R ./sub-unchained-cname /results
-
+# Trigger Subqueries + CNAME Scrubbing
 python3 ./create_sub_ccv_files.py
 cp -R ./sub-ccv /results
-# Here we can trigger Cname scrubbing + QMIN, CNAME Scrubbing + Delay, CNAME Scrubbing + QMIN + Delay
+# Here we can trigger CNAME Scrubbing + QMIN, CNAME Scrubbing + Delay, CNAME Scrubbing + QMIN + Delay
 python3 ./create_ccv_files.py
 cp -R ./ccv-qmin /results
 cp -R ./ccv-qmin-delay /results

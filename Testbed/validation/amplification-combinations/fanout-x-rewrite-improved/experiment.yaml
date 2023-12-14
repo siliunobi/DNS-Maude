@@ -1,9 +1,0 @@
-name: "fanout-x-rewrite-improved"
-zonesDir: validation/amplification-combinations/fanout-x-rewrite-improved/zones
-target: "target"
-measure: "volume"
-queries:
-  - zone: "q.a.com"
-    record: "A"
-qmin: false
-testbed: validation/amplification-combinations/fanout-x-rewrite-improved/testbed.yaml

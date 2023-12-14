@@ -1,6 +1,0 @@
-$TTL 3600
-@				IN		SOA		server.n7n17n12.c.com. username.n7n17n12.c.com. (2006032201 7200 3600 1209600 36000)
-				IN		NS		n7n17n13.c.com.
-n7n17n13.c.com.		IN		A		172.20.0.6
-
-n7n17n12.c.com.		IN		A		172.20.0.6

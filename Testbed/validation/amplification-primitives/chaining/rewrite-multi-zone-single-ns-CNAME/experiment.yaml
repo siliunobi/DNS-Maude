@@ -1,8 +1,0 @@
-name: "chain-rewrite-multi-zone-single-ns-CNAME"
-target: "ns1"
-measure: "volume"
-queries:
-  - zone: "chain.zone1.com."
-    record: "A"
-qmin: false
-testbed: validation/amplification-primitives/testbed-multi-zones-single-ns.yaml
