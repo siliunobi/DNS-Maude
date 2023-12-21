@@ -105,7 +105,7 @@ NOTE: the Go versions the testbed was run with are `1.18` and `1.20.5`, there is
 ### Plot the results
 Finally, after having run the Maude and the testbed experiments, the script then continues by creating plots using the content of the folder by running the script `plot.py`.
 This will create two figures : `attacks_af` and `attacks_delay`.
-Those correspond to the ones displayed in the paper "[A Formal Framework for End-to-End DNS Resolution](https://github.com/siliunobi/DNS-Maude/blob/main/sigcomm23-paper683-submission.pdf)" currently page 10-11.
+Those correspond to the ones displayed in the paper "[A Formal Framework for End-to-End DNS Resolution](https://dl.acm.org/doi/abs/10.1145/3603269.3604870)".
 Minor differences might be observed in the testbed results, this is expected as it is not an entirely deterministic process.
 
 #### Python packages
